@@ -80,6 +80,7 @@ def create_parser():
 
     # Training parameters (optimizer)
     parser.add_argument('--epoch', '-e', default=None, type=int, help='end epochs (default: 200)')
+    parser.add_argument('--checkpoint_interval', '-ci', default=None, type=int, help='Checkpoint save interval (default: None)')
     parser.add_argument('--log_step', default=1, type=int, help='Log interval by step')
     parser.add_argument('--opt', default='adam', type=str, metavar='OPTIMIZER',
                         help='Optimizer (default: "adam"')
