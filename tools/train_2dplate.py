@@ -24,8 +24,19 @@ class PlateDataset(Dataset):
 
 
 def main():
-    file_path = 'data/2dplate/dataset.pkl'
-    batch_size = 8
+    parser = create_parser()
+
+    parser.add_argument('--pre_seq_length', type=int, default=10)
+    parser.add_argument('--aft_seq_length', type=int, default=10)
+    parser.add_argument('--image_height', type=int, default=64)
+    parser.add_argument('--image_width', type=int, default=64)
+    parser.add_argument('--chance', type=float, default=0.1)
+    parser.add_argument('--datafile', type=str, default='data/2dplate/dataset.pkl')
+
+    args = parser.parse_args()
+
+    file_path = args.datafile
+    batch_size = args.batch_size
 
     with open(file_path, 'rb') as f:
         dataset = pickle.load(f)
@@ -44,18 +55,18 @@ def main():
         test_set, batch_size=batch_size, shuffle=True, pin_memory=True)
 
     custom_training_config = {
-        'pre_seq_length': 10,
-        'aft_seq_length': 10,
-        'total_length': 20,
-        'batch_size': 16,
-        'val_batch_size': 16,
-        'epoch': 5,
-        'lr': 1e-4,
+        'pre_seq_length': args.pre_seq_length,
+        'aft_seq_length': args.aft_seq_length,
+        'total_length': args.pre_seq_length + args.aft_seq_length,
+        'batch_size': batch_size,
+        'val_batch_size': batch_size,
+        'epoch': args.epoch,
+        'lr': args.learning_rate,
         'metrics': ['mse', 'mae'],
 
         'ex_name': 'e3dlstm_2dplate',
         'dataname': '2dplate',
-        'in_shape': [10, 1, 64, 64],
+        'in_shape': [10, 1, args.image_height, args.image_width],
     }
 
     custom_model_config = {
@@ -99,20 +110,25 @@ def main():
     print('>' * 35 + ' testing  ' + '<' * 35)
     exp.test()
 
-    inputs = np.load('./work_dirs/e3dlstm_2dplate/saved/inputs.npy')
-    preds = np.load('./work_dirs/e3dlstm_2dplate/saved/preds.npy')
-    trues = np.load('./work_dirs/e3dlstm_2dplate/saved/trues.npy')
+    ex_name = custom_training_config['ex_name']
+    inputs = np.load(f'./work_dirs/{ex_name}/saved/inputs.npy')
+    preds = np.load(f'./work_dirs/{ex_name}/saved/preds.npy')
+    trues = np.load(f'./work_dirs/{ex_name}/saved/trues.npy')
 
     example_idx = 0
     show_video_line(inputs[example_idx], ncols=10, vmax=0.6, cbar=False, format='png', cmap='coolwarm',
-                    out_path='./work_dirs/e3dlstm_2dplate/2dplate_input.png')
+                    out_path=f'./work_dirs/{ex_name}/saved/2dplate_input.png')
     show_video_line(preds[example_idx], ncols=10, vmax=0.6, cbar=False, format='png', cmap='coolwarm',
-                    out_path='./work_dirs/e3dlstm_2dplate/2dplate_pred.png')
+                    out_path=f'./work_dirs/{ex_name}/saved/2dplate_pred.png')
     show_video_line(trues[example_idx], ncols=10, vmax=0.6, cbar=False, format='png', cmap='coolwarm',
-                    out_path='./work_dirs/e3dlstm_2dplate/2dplate_true.png')
+                    out_path=f'./work_dirs/{ex_name}/saved/2dplate_true.png')
+
+    diff = np.abs(preds[example_idx] - trues[example_idx])
+    show_video_line(diff, ncols=10, vmax=0.6, cbar=False, format='png', cmap='gray',
+                    out_path=f'./work_dirs/{ex_name}/saved/2dplate_diff.png')
 
     show_video_gif_multiple(inputs[example_idx], trues[example_idx], preds[example_idx], cmap='coolwarm',
-                    out_path='./work_dirs/e3dlstm_2dplate/2dplate.gif')
+                    out_path=f'./work_dirs/{ex_name}/saved/2dplate.gif')
 
 if __name__ == '__main__':
     main()
