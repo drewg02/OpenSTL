@@ -6,11 +6,13 @@ import numpy as np
 from openstl.api import BaseExperiment
 from openstl.utils import create_parser, default_parser, show_video_line, show_video_gif_multiple
 
-class CustomDataset(Dataset):
-    def __init__(self, X, Y):
-        super(CustomDataset, self).__init__()
+class PlateDataset(Dataset):
+    def __init__(self, X, Y, normalize=False):
+        super(PlateDataset, self).__init__()
         self.X = X
         self.Y = Y
+        self.mean = None
+        self.std = None
 
     def __len__(self):
         return self.X.shape[0]
@@ -31,9 +33,9 @@ def main():
     X_train, X_val, X_test, Y_train, Y_val, Y_test = dataset['X_train'], dataset[
         'X_val'], dataset['X_test'], dataset['Y_train'], dataset['Y_val'], dataset['Y_test']
 
-    train_set = CustomDataset(X=X_train, Y=Y_train)
-    val_set = CustomDataset(X=X_val, Y=Y_val)
-    test_set = CustomDataset(X=X_test, Y=Y_test)
+    train_set = PlateDataset(X=X_train, Y=Y_train)
+    val_set = PlateDataset(X=X_val, Y=Y_val)
+    test_set = PlateDataset(X=X_test, Y=Y_test)
     dataloader_train = torch.utils.data.DataLoader(
         train_set, batch_size=batch_size, shuffle=True, pin_memory=True)
     dataloader_val = torch.utils.data.DataLoader(
