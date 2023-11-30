@@ -313,7 +313,10 @@ class BaseExperiment(object):
                     print_log('Epoch: {0}, Steps: {1} | Lr: {2:.7f} | Train Loss: {3:.7f} | Vali Loss: {4:.7f}\n'.format(
                         epoch + 1, len(self.train_loader), cur_lr, loss_mean.avg, vali_loss))
                     early_stop = recorder(vali_loss, self.method.model, self.path)
-                    self._save(name='latest')
+
+                    # save checkpoints
+                    if self.args.checkpoint_interval is not None and (epoch + 1) % self.args.checkpoint_interval == 0:
+                        self._save(name=f'epoch_{epoch + 1}')
             if self._use_gpu and self.args.empty_cache:
                 torch.cuda.empty_cache()
             if epoch > self._early_stop and early_stop:  # early stop training
