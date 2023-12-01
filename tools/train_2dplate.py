@@ -26,8 +26,6 @@ class PlateDataset(Dataset):
 def main():
     parser = create_parser()
 
-    parser.add_argument('--pre_seq_length', type=int, default=10)
-    parser.add_argument('--aft_seq_length', type=int, default=10)
     parser.add_argument('--image_height', type=int, default=64)
     parser.add_argument('--image_width', type=int, default=64)
     parser.add_argument('--chance', type=float, default=0.1)
@@ -37,6 +35,8 @@ def main():
 
     file_path = args.datafile
     batch_size = args.batch_size
+    pre_seq_length = args.pre_seq_length if args.pre_seq_length is not None else 10
+    aft_seq_length = args.aft_seq_length if args.aft_seq_length is not None else 10
 
     with open(file_path, 'rb') as f:
         dataset = pickle.load(f)
@@ -55,9 +55,9 @@ def main():
         test_set, batch_size=batch_size, shuffle=True, pin_memory=True)
 
     custom_training_config = {
-        'pre_seq_length': args.pre_seq_length,
-        'aft_seq_length': args.aft_seq_length,
-        'total_length': args.pre_seq_length + args.aft_seq_length,
+        'pre_seq_length': pre_seq_length,
+        'aft_seq_length': aft_seq_length,
+        'total_length': pre_seq_length + aft_seq_length,
         'batch_size': batch_size,
         'val_batch_size': batch_size,
         'epoch': args.epoch,

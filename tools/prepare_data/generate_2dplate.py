@@ -144,8 +144,6 @@ def split_data(data, train_ratio=0.7, val_ratio=0.15):
 def main():
     parser = create_parser()
 
-    parser.add_argument('--pre_seq_length', type=int, default=10)
-    parser.add_argument('--aft_seq_length', type=int, default=10)
     parser.add_argument('--image_height', type=int, default=64)
     parser.add_argument('--image_width', type=int, default=64)
     parser.add_argument('--chance', type=float, default=0.1)
@@ -154,8 +152,8 @@ def main():
     args = parser.parse_args()
 
     file_path = args.datafile
-    pre_seq_length = args.pre_seq_length
-    aft_seq_length = args.aft_seq_length
+    pre_seq_length = args.pre_seq_length if args.pre_seq_length is not None else 10
+    aft_seq_length = args.aft_seq_length if args.aft_seq_length is not None else 10
     image_height = args.image_height
     image_width = args.image_width
     chance = args.chance
