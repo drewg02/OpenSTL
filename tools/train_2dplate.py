@@ -28,7 +28,6 @@ def main():
 
     parser.add_argument('--image_height', type=int, default=64)
     parser.add_argument('--image_width', type=int, default=64)
-    parser.add_argument('--chance', type=float, default=0.1)
     parser.add_argument('--datafile', type=str, default='data/2dplate/dataset.pkl')
 
     args = parser.parse_args()
