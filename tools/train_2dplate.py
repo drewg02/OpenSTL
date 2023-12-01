@@ -60,7 +60,7 @@ def main():
         'batch_size': batch_size,
         'val_batch_size': batch_size,
         'epoch': args.epoch,
-        'lr': args.learning_rate,
+        'lr': args.lr,
         'metrics': ['mse', 'mae'],
 
         'ex_name': 'e3dlstm_2dplate',
