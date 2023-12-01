@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 import numpy as np
 
 from openstl.api import BaseExperiment
-from openstl.utils import create_parser, default_parser, show_video_line, show_video_gif_multiple
+from openstl.utils import create_parser, default_parser, show_video_line, show_video_gif_multiple, show_video_line_tsse
 
 class PlateDataset(Dataset):
     def __init__(self, X, Y, normalize=False):
@@ -125,6 +125,9 @@ def main():
     diff = np.abs(preds[example_idx] - trues[example_idx])
     show_video_line(diff, ncols=10, vmax=0.6, cbar=False, format='png', cmap='gray',
                     out_path=f'./work_dirs/{ex_name}/saved/2dplate_diff.png')
+
+    show_video_line_tsse(trues[example_idx], preds[example_idx], ncols=10, vmax=0.6, cbar=False, format='png', cmap='coolwarm',
+                    out_path=f'./work_dirs/{ex_name}/saved/2dplate_tsse.png')
 
     show_video_gif_multiple(inputs[example_idx], trues[example_idx], preds[example_idx], cmap='coolwarm',
                     out_path=f'./work_dirs/{ex_name}/saved/2dplate.gif')

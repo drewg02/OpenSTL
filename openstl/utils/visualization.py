@@ -64,6 +64,49 @@ def get_mpl_colormap(cmap_name):
     return color_range.reshape(256, 1, 3)
 
 
+def calculate_tsse(real_image, predicted_image):
+    squared_errors = (real_image - predicted_image) ** 2
+    return np.sum(squared_errors)
+
+
+def show_video_line_tsse(trues, preds, ncols, vmax=0.6, vmin=0.0, cmap='gray', norm=None, cbar=False, format='png', out_path=None, use_rgb=False):
+    """generate images with a video sequence and display TSSE between trues and preds"""
+    fig, axes = plt.subplots(nrows=1, ncols=ncols, figsize=(3.25 * ncols, 3))
+    plt.subplots_adjust(wspace=0.01, hspace=0)
+
+    if len(trues.shape) > 3:
+        trues = trues.swapaxes(1,2).swapaxes(2,3)
+    if len(preds.shape) > 3:
+        preds = preds.swapaxes(1,2).swapaxes(2,3)
+
+    images = []
+    for t, ax in enumerate(axes.flat):
+        if use_rgb:
+            true_img = cv2.cvtColor(trues[t], cv2.COLOR_BGR2RGB)
+            pred_img = cv2.cvtColor(preds[t], cv2.COLOR_BGR2RGB)
+        else:
+            true_img = trues[t]
+            pred_img = preds[t]
+
+        tsse = calculate_tsse(true_img, pred_img)
+        im = ax.imshow(true_img, cmap=cmap, norm=norm)
+        images.append(im)
+        ax.axis('off')
+        im.set_clim(vmin, vmax)
+
+        # Add TSSE text annotation
+        ax.text(0.5, -0.1, f"TSSE: {tsse:.2f}", size=12, ha="center", transform=ax.transAxes)
+
+    if cbar and ncols > 1:
+        cbaxes = fig.add_axes([0.9, 0.15, 0.04 / ncols, 0.7])
+        cbar = fig.colorbar(im, ax=axes.ravel().tolist(), shrink=0.1, cax=cbaxes)
+
+    plt.show()
+    if out_path is not None:
+        fig.savefig(out_path, format=format, pad_inches=0, bbox_inches='tight')
+    plt.close()
+
+
 def show_video_line(data, ncols, vmax=0.6, vmin=0.0, cmap='gray', norm=None, cbar=False, format='png', out_path=None, use_rgb=False):
     """generate images with a video sequence"""
     fig, axes = plt.subplots(nrows=1, ncols=ncols, figsize=(3.25 * ncols, 3))
