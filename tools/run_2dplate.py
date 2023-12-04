@@ -128,9 +128,9 @@ def create_parser():
 
 
     # 2dplate parameters
-    parser.add_argument('--train', action='store_true', default=True, help='Perform training')
-    parser.add_argument('--test', action='store_true', default=True, help='Perform testing')
-    parser.add_argument('--visualize', action='store_true', default=True, help='Visualize the results when testing')
+    parser.add_argument('--train', action='store_true', default=False, help='Perform training')
+    parser.add_argument('--test', action='store_true', default=False, help='Perform testing')
+    parser.add_argument('--visualize', action='store_true', default=False, help='Visualize the results when testing')
 
     parser.add_argument('--image_height', type=int, default=64)
     parser.add_argument('--image_width', type=int, default=64)
@@ -257,6 +257,8 @@ def main():
     train = args.train
     test = args.test
     visualize = args.visualize
+
+
 
     if not train and not test:
         raise ValueError('At least one of train or test must be True')
