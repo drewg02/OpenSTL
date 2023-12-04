@@ -252,13 +252,7 @@ def run(exp, ex_name, train=True, test=True, visualize=True):
             save_visualizations(ex_name)
 
 def main():
-    parser = create_parser()
-
-    parser.add_argument('--image_height', type=int, default=64)
-    parser.add_argument('--image_width', type=int, default=64)
-    parser.add_argument('--datafile', type=str, default='data/2dplate/dataset.pkl')
-
-    args = parser.parse_args()
+    args = create_parser().parse_args()
 
     train = args.train
     test = args.test
