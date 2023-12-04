@@ -144,31 +144,52 @@ def split_data(data, train_ratio=0.7, val_ratio=0.15):
 def main():
     parser = create_parser()
 
+    parser.add_argument('--total_frames', type=int, default=1000)
+
     parser.add_argument('--image_height', type=int, default=64)
     parser.add_argument('--image_width', type=int, default=64)
     parser.add_argument('--chance', type=float, default=0.1)
+
+    parser.add_argument('--train_ratio', type=float, default=0.7)
+    parser.add_argument('--val_ratio', type=float, default=0.15)
+
     parser.add_argument('--datafile', type=str, default='data/2dplate/dataset.pkl')
 
     args = parser.parse_args()
 
     file_path = args.datafile
+    total_frames = args.total_frames
+
     pre_seq_length = args.pre_seq_length if args.pre_seq_length is not None else 10
     aft_seq_length = args.aft_seq_length if args.aft_seq_length is not None else 10
+    total_seq_length = pre_seq_length + aft_seq_length
+
+    # Check that the total_frames is divisible by the total_seq_length as each plate will have total_seq_length frames
+    if total_frames % total_seq_length != 0:
+        raise ValueError(f"total_frames ({total_frames}) must be divisible by total_seq_length ({total_seq_length})")
+
     image_height = args.image_height
     image_width = args.image_width
     chance = args.chance
 
+    train_ratio = args.train_ratio
+    val_ratio = args.val_ratio
+
+    # Check that the ratios are valid
+    if train_ratio + val_ratio >= 1.0:
+        raise ValueError(f"train_ratio ({train_ratio}) + val_ratio ({val_ratio}) must be less than 1.0")
+
     start_time = time.time()
-    plates = create_plates(image_height, image_width, 1000, pre_seq_length + aft_seq_length, chance=chance,
+    plates = create_plates(image_height, image_width, total_frames, total_seq_length, chance=chance,
                            array_type=ArrayType.RANDOM, verbose=True)
 
-    # Reshape the plates array to be (num_plates, total_frames, channels, rows, cols)
-    plates = np.reshape(plates, (-1, pre_seq_length + aft_seq_length, 1, image_height, image_width))
+    # Reshape the plates array to be (num_plates, total_seq_length, channels, rows, cols)
+    plates = np.reshape(plates, (-1, total_seq_length, 1, image_height, image_width))
 
     elapsed = time.time() - start_time
     print(f"Generating {len(plates)} plates took {elapsed} seconds.")
 
-    split_pairs = split_data(plates, train_ratio=0.7, val_ratio=0.15)
+    split_pairs = split_data(plates, train_ratio=train_ratio, val_ratio=val_ratio)
 
     dataset = {}
     for split in ['train', 'val', 'test']:
