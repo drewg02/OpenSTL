@@ -72,8 +72,8 @@ def calculate_tsse(real_image, predicted_image):
 def show_video_line_tsse(trues, preds, ncols, vmax=0.6, vmin=0.0, cmap='gray', norm=None, cbar=False, format='png', out_path=None, use_rgb=False):
     """generate images with a video sequence and display TSSE between trues and preds"""
     nrows = 2
-    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(3.25 * ncols, 3))
-    plt.subplots_adjust(wspace=0.01, hspace=0)
+    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(3.25 * ncols, 6.5))
+    plt.subplots_adjust(wspace=0.1, hspace=0.1)
 
     if len(trues.shape) > 3:
         trues = trues.swapaxes(1,2).swapaxes(2,3)
@@ -104,7 +104,7 @@ def show_video_line_tsse(trues, preds, ncols, vmax=0.6, vmin=0.0, cmap='gray', n
         cbaxes = fig.add_axes([0.9, 0.15, 0.04 / ncols, 0.7 * nrows])
         cbar = fig.colorbar(im_pred, ax=axes.ravel().tolist(), shrink=0.1, cax=cbaxes)
 
-    plt.show()
+    # plt.show()
     if out_path is not None:
         fig.savefig(out_path, format=format, pad_inches=0, bbox_inches='tight')
     plt.close()
