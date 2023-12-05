@@ -94,7 +94,7 @@ def show_video_line_tsse(trues, preds, ncols, vmax=0.6, vmin=0.0, cmap='gray', n
         ax_pred.axis('off')
         im_pred.set_clim(vmin, vmax)
 
-        tsse = calculate_tsse(true_img, pred_img)
+        tsse = calculate_tsse(trues[t], preds[t])
         ax_pred.text(0.5, -0.1, f"TSSE: {tsse:.2f}", size=12, ha="center", transform=ax_pred.transAxes)
 
         images.append(im_true)
