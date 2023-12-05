@@ -8,6 +8,7 @@ import pickle
 from openstl.utils import create_parser
 
 class ArrayType(Enum):
+    LEFT = 'left'
     OUTLINE = 'outline'
     CENTER = 'center'
     PLUS = 'plus'
@@ -17,6 +18,8 @@ class ArrayType(Enum):
 
 def update_array(array, rows, cols, array_type, thickness=1, chance=0.2):
     match array_type:
+        case ArrayType.LEFT:
+            array[:, 0:thickness] = 1.0
         case ArrayType.OUTLINE:
             array[0:thickness, :] = 1.0
             array[-thickness:, :] = 1.0
