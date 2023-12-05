@@ -215,31 +215,31 @@ def generate_configs(pre_seq_length, aft_seq_length, batch_size, args):
     return custom_training_config, custom_model_config
 
 
-def save_visualizations(ex_name):
+def save_visualizations(ex_name, pre_seq_length, aft_seq_length):
     inputs = np.load(f'./work_dirs/{ex_name}/saved/inputs.npy')
     preds = np.load(f'./work_dirs/{ex_name}/saved/preds.npy')
     trues = np.load(f'./work_dirs/{ex_name}/saved/trues.npy')
 
     example_idx = 0
-    show_video_line(inputs[example_idx], ncols=10, vmax=0.6, cbar=False, format='png', cmap='coolwarm',
+    show_video_line(inputs[example_idx], ncols=pre_seq_length, vmax=0.6, cbar=False, format='png', cmap='coolwarm',
                     out_path=f'./work_dirs/{ex_name}/saved/2dplate_input.png')
-    show_video_line(preds[example_idx], ncols=10, vmax=0.6, cbar=False, format='png', cmap='coolwarm',
+    show_video_line(preds[example_idx], ncols=aft_seq_length, vmax=0.6, cbar=False, format='png', cmap='coolwarm',
                     out_path=f'./work_dirs/{ex_name}/saved/2dplate_pred.png')
-    show_video_line(trues[example_idx], ncols=10, vmax=0.6, cbar=False, format='png', cmap='coolwarm',
+    show_video_line(trues[example_idx], ncols=aft_seq_length, vmax=0.6, cbar=False, format='png', cmap='coolwarm',
                     out_path=f'./work_dirs/{ex_name}/saved/2dplate_true.png')
 
     diff = np.abs(preds[example_idx] - trues[example_idx])
-    show_video_line(diff, ncols=10, vmax=0.6, cbar=False, format='png', cmap='gray',
+    show_video_line(diff, ncols=aft_seq_length, vmax=0.6, cbar=False, format='png', cmap='gray',
                     out_path=f'./work_dirs/{ex_name}/saved/2dplate_diff.png')
 
-    show_video_line_tsse(trues[example_idx], preds[example_idx], ncols=10, vmax=0.6, cbar=False, format='png',
+    show_video_line_tsse(trues[example_idx], preds[example_idx], ncols=aft_seq_length, vmax=0.6, cbar=False, format='png',
                          cmap='coolwarm',
                          out_path=f'./work_dirs/{ex_name}/saved/2dplate_tsse.png')
 
     show_video_gif_multiple(inputs[example_idx], trues[example_idx], preds[example_idx], cmap='coolwarm',
                             out_path=f'./work_dirs/{ex_name}/saved/2dplate.gif')
 
-def run(exp, ex_name, train=True, test=True, visualize=True):
+def run(exp, ex_name, pre_seq_length, aft_seq_length, train=True, test=True, visualize=True):
     if train:
         print('>' * 35 + f' training {ex_name} ' + '<' * 35)
         exp.train()
@@ -249,7 +249,7 @@ def run(exp, ex_name, train=True, test=True, visualize=True):
         exp.test()
 
         if visualize:
-            save_visualizations(ex_name)
+            save_visualizations(ex_name, pre_seq_length, aft_seq_length)
 
 def main():
     args = create_parser().parse_args()
@@ -288,7 +288,7 @@ def main():
 
     ex_name = custom_training_config['ex_name']
 
-    run(exp, ex_name, train=train, test=test, visualize=visualize)
+    run(exp, ex_name, pre_seq_length, aft_seq_length, train=train, test=test, visualize=visualize)
 
 if __name__ == '__main__':
     main()
