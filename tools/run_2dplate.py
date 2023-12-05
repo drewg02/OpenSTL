@@ -176,7 +176,7 @@ def load_data(file_path, batch_size):
     return dataloader_train, dataloader_val, dataloader_test
 
 
-def generate_configs(pre_seq_length, aft_seq_length, batch_size, args):
+def generate_configs(ex_name, pre_seq_length, aft_seq_length, batch_size, args):
     custom_training_config = {
         'pre_seq_length': pre_seq_length,
         'aft_seq_length': aft_seq_length,
@@ -187,7 +187,7 @@ def generate_configs(pre_seq_length, aft_seq_length, batch_size, args):
         'lr': args.lr,
         'metrics': ['mse', 'mae'],
 
-        'ex_name': 'e3dlstm_2dplate',
+        'ex_name': ex_name,
         'dataname': '2dplate',
         'in_shape': [pre_seq_length, 1, args.image_height, args.image_width],
     }
@@ -258,11 +258,10 @@ def main():
     test = args.test
     visualize = args.visualize
 
-
-
     if not train and not test:
         raise ValueError('At least one of train or test must be True')
 
+    ex_name = args.ex_name
     file_path = args.datafile
     batch_size = args.batch_size
     pre_seq_length = args.pre_seq_length if args.pre_seq_length is not None else 10
@@ -270,7 +269,7 @@ def main():
 
     dataloader_train, dataloader_val, dataloader_test = load_data(file_path, batch_size)
 
-    custom_training_config, custom_model_config = generate_configs(pre_seq_length, aft_seq_length, batch_size, args)
+    custom_training_config, custom_model_config = generate_configs(ex_name, pre_seq_length, aft_seq_length, batch_size, args)
 
     config = args.__dict__
 
@@ -285,8 +284,6 @@ def main():
             config[attribute] = default_values[attribute]
 
     exp = BaseExperiment(args, dataloaders=(dataloader_train, dataloader_val, dataloader_test))
-
-    ex_name = custom_training_config['ex_name']
 
     run(exp, ex_name, pre_seq_length, aft_seq_length, train=train, test=test, visualize=visualize)
 
