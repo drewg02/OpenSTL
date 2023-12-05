@@ -8,7 +8,6 @@ import pickle
 from openstl.utils import create_parser
 
 class ArrayType(Enum):
-    LEFT = 'left'
     OUTLINE = 'outline'
     CENTER = 'center'
     PLUS = 'plus'
@@ -18,8 +17,6 @@ class ArrayType(Enum):
 
 def update_array(array, rows, cols, array_type, thickness=1, chance=0.2):
     match array_type:
-        case ArrayType.LEFT:
-            array[:, 0:thickness] = 1.0
         case ArrayType.OUTLINE:
             array[0:thickness, :] = 1.0
             array[-thickness:, :] = 1.0
@@ -172,6 +169,8 @@ def main():
     if total_frames % total_seq_length != 0:
         raise ValueError(f"total_frames ({total_frames}) must be divisible by total_seq_length ({total_seq_length})")
 
+    num_plates = total_frames / total_seq_length
+
     image_height = args.image_height
     image_width = args.image_width
     array_type = args.array_type
@@ -185,7 +184,7 @@ def main():
         raise ValueError(f"train_ratio ({train_ratio}) + val_ratio ({val_ratio}) must be less than 1.0")
 
     start_time = time.time()
-    plates = create_plates(image_height, image_width, total_frames, total_seq_length, chance=chance,
+    plates = create_plates(image_height, image_width, num_plates, total_seq_length, chance=chance,
                            array_type=array_type, verbose=True)
 
     # Reshape the plates array to be (num_plates, total_seq_length, channels, rows, cols)
