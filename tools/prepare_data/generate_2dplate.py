@@ -148,6 +148,7 @@ def main():
 
     parser.add_argument('--image_height', type=int, default=64)
     parser.add_argument('--image_width', type=int, default=64)
+    parser.add_argument('--array_type', type=ArrayType, default=ArrayType.RANDOM)
     parser.add_argument('--chance', type=float, default=0.1)
 
     parser.add_argument('--train_ratio', type=float, default=0.7)
@@ -170,6 +171,7 @@ def main():
 
     image_height = args.image_height
     image_width = args.image_width
+    array_type = args.array_type
     chance = args.chance
 
     train_ratio = args.train_ratio
@@ -181,7 +183,7 @@ def main():
 
     start_time = time.time()
     plates = create_plates(image_height, image_width, total_frames, total_seq_length, chance=chance,
-                           array_type=ArrayType.RANDOM, verbose=True)
+                           array_type=array_type, verbose=True)
 
     # Reshape the plates array to be (num_plates, total_seq_length, channels, rows, cols)
     plates = np.reshape(plates, (-1, total_seq_length, 1, image_height, image_width))
