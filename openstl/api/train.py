@@ -289,12 +289,21 @@ class BaseExperiment(object):
 
     def train(self):
         """Training loops of STL methods"""
+        start_time = time.time()
+
         recorder = Recorder(verbose=True, early_stop_time=min(self._max_epochs // 10, 10))
         num_updates = self._epoch * self.steps_per_epoch
         early_stop = False
         self.call_hook('before_train_epoch')
 
         eta = 1.0  # PredRNN variants
+
+        results = {
+            'train_loss': np.zeros(self._max_epochs),
+            'vali_loss': np.zeros(self._max_epochs),
+            'lr': np.zeros(self._max_epochs)
+        }
+
         for epoch in range(self._epoch, self._max_epochs):
             if self._dist and hasattr(self.train_loader.sampler, 'set_epoch'):
                 self.train_loader.sampler.set_epoch(epoch)
@@ -314,6 +323,11 @@ class BaseExperiment(object):
                         epoch + 1, len(self.train_loader), cur_lr, loss_mean.avg, vali_loss))
                     early_stop = recorder(vali_loss, self.method.model, self.path)
 
+                    # retain data
+                    results['train_loss'][epoch] = loss_mean.avg
+                    results['vali_loss'][epoch] = vali_loss
+                    results['lr'][epoch] = cur_lr
+
                     # save checkpoints
                     if self.args.checkpoint_interval is not None and (epoch + 1) % self.args.checkpoint_interval == 0:
                         self._save(name=f'epoch_{epoch + 1}')
@@ -328,6 +342,15 @@ class BaseExperiment(object):
         self._load_from_state_dict(torch.load(best_model_path))
         time.sleep(1)  # wait for some hooks like loggers to finish
         self.call_hook('after_run')
+
+        print_log(f'Training time: {time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time))}')
+
+        if self._rank == 0:
+            folder_path = osp.join(self.path, 'saved')
+            check_dir(folder_path)
+
+            for np_data in results.keys():
+                np.save(osp.join(folder_path, np_data + '.npy'), results[np_data])
 
     def vali(self):
         """A validation loop during training"""

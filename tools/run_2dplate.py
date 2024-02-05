@@ -3,6 +3,9 @@ import pickle
 import torch
 from torch.utils.data import Dataset
 import numpy as np
+import matplotlib.pyplot as plt
+import os
+
 
 from openstl.api import BaseExperiment
 from openstl.utils import default_parser, show_video_line, show_video_gif_multiple, show_video_line_tsse
@@ -214,11 +217,33 @@ def generate_configs(ex_name, pre_seq_length, aft_seq_length, batch_size, args):
 
     return custom_training_config, custom_model_config
 
+def plot_metric(metric, metric_file, folder_path):
+    plt.figure()
+    plt.plot(metric)
+    plt.title(f"{metric_file.split('.')[0]} over Epochs")
+    plt.xlabel("Epochs")
+    plt.ylabel(metric_file.split('.')[0])
+    plt.grid(True)
+    plt.savefig(os.path.join(folder_path, f"{metric_file.replace('.npy', '.png')}"))
+
+def plot_combined_loss(train_loss, vali_loss, folder_path):
+    plt.figure()
+    plt.plot(train_loss, label='Train Loss')
+    plt.plot(vali_loss, label='Validation Loss')
+    plt.title("Training and Validation Loss over Epochs")
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(os.path.join(folder_path, 'loss.png'))
+
 
 def save_visualizations(ex_name, pre_seq_length, aft_seq_length):
-    inputs = np.load(f'./work_dirs/{ex_name}/saved/inputs.npy')
-    preds = np.load(f'./work_dirs/{ex_name}/saved/preds.npy')
-    trues = np.load(f'./work_dirs/{ex_name}/saved/trues.npy')
+    save_folder = f'./work_dirs/{ex_name}/saved'
+
+    inputs = np.load(f'{save_folder}/inputs.npy')
+    preds = np.load(f'{save_folder}/preds.npy')
+    trues = np.load(f'{save_folder}/trues.npy')
 
     example_idx = 0
     show_video_line(inputs[example_idx], ncols=pre_seq_length, vmax=0.6, cbar=False, format='png', cmap='coolwarm',
@@ -238,6 +263,27 @@ def save_visualizations(ex_name, pre_seq_length, aft_seq_length):
 
     show_video_gif_multiple(inputs[example_idx], trues[example_idx], preds[example_idx], cmap='coolwarm',
                             out_path=f'./work_dirs/{ex_name}/saved/2dplate.gif')
+
+    # Metric filenames
+    metric_files = ['mse.npy', 'mae.npy', 'lr.npy', 'train_loss.npy', 'vali_loss.npy']
+
+    # Load and plot each metric
+    train_loss, vali_loss = None, None
+    for metric_file in metric_files:
+        metric_path = os.path.join(save_folder, metric_file)
+        if os.path.exists(metric_path):
+            metric = np.load(metric_path)
+            plot_metric(metric, metric_file, save_folder)
+            if metric_file == 'train_loss.npy':
+                train_loss = metric
+            if metric_file == 'vali_loss.npy':
+                vali_loss = metric
+        else:
+            print(f"Metric file {metric_file} not found in {save_folder}")
+
+    # Plot combined train and validation loss
+    if train_loss is not None and vali_loss is not None:
+        plot_combined_loss(train_loss, vali_loss, save_folder)
 
 def run(exp, ex_name, pre_seq_length, aft_seq_length, train=True, test=True, visualize=True):
     if train:
