@@ -291,6 +291,8 @@ def create_local_parser():
     parser.add_argument('--thickness', type=int, default=1)
     parser.add_argument('--static_cells_random', type=bool, default=False)
     parser.add_argument('--dynamic_cells_random', type=bool, default=False)
+    parser.add_argument('--offset', type=int, default=0)
+    parser.add_argument('--increment', type=int, default=5)
 
     parser.add_argument('--train_ratio', type=float, default=0.7)
     parser.add_argument('--val_ratio', type=float, default=0.15)
@@ -311,15 +313,14 @@ def main():
 
     num_samples = max(args.num_samples)
 
-    simulation = None
-    for sim in [HeatTransfer, Boiling]:
-        if args.simulation == sim.__name__:
-            simulation = sim()
-            break
+    match args.simulation:
+        case HeatTransfer.__name__:
+            simulation = HeatTransfer()
+        case Boiling.__name__:
+            simulation = Boiling(args.offset, args.increment)
+        case _:
+            raise ValueError(f"Invalid simulation type: {args.simulation}")
 
-    if simulation is None:
-        raise ValueError(f"Invalid simulation type: {args.simulation}")
-    
     pre_seq_length = args.pre_seq_length if args.pre_seq_length is not None else 10
     aft_seq_length = args.aft_seq_length if args.aft_seq_length is not None else 10
     total_seq_length = pre_seq_length + aft_seq_length
@@ -339,17 +340,17 @@ def main():
     save_split(split_pairs, pre_seq_length, file_path)
     
     if len(args.num_samples) > 1:
-        for num_samples in args.num_samples:
-            train_amount = int(num_samples * args.train_ratio)
-            val_amount = int(num_samples * args.val_ratio)
-            test_amount = num_samples - train_amount - val_amount
+        for num_samples_additional in args.num_samples:
+            train_amount = int(num_samples_additional * args.train_ratio)
+            val_amount = int(num_samples_additional * args.val_ratio)
+            test_amount = num_samples_additional - train_amount - val_amount
             supplemental_split_pairs =  {
                 'train': split_pairs['train'][:train_amount],
                 'val': split_pairs['val'][:val_amount],
                 'test': split_pairs['test'][:test_amount]
             }
 
-            supplemental_file_path = file_path.replace(f'_{samples}samples', f'_{num_samples}samples')
+            supplemental_file_path = file_path.replace(f'_{num_samples}samples', f'_{num_samples_additional}samples')
             save_split(supplemental_split_pairs, pre_seq_length, supplemental_file_path)
     
 
