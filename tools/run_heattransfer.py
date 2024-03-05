@@ -4,12 +4,12 @@ import torch
 from torch.utils.data import Dataset
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
 import os
 
 
 from openstl.api import BaseExperiment
 from openstl.utils import default_parser, show_video_line, show_video_gif_multiple, show_video_line_tsse
+from openstl.simulations import HeatTransfer
 
 
 def create_parser():
@@ -238,32 +238,31 @@ def plot_combined_loss(train_loss, vali_loss, folder_path):
     plt.grid(True)
     plt.savefig(os.path.join(folder_path, 'loss.png'))
 
-cmap_diff = LinearSegmentedColormap.from_list("white_to_green", ["white", "green"], N=256)
-
-def save_visualizations(ex_name, pre_seq_length, aft_seq_length):
+def save_visualizations(ex_name, pre_seq_length, aft_seq_length, normalized=True):
     save_folder = f'./work_dirs/{ex_name}/saved'
 
     inputs = np.load(f'{save_folder}/inputs.npy')
     preds = np.load(f'{save_folder}/preds.npy')
     trues = np.load(f'{save_folder}/trues.npy')
 
+    vmax = (1 if normalized else HeatTransfer.vmax)
     example_idx = 0
-    show_video_line(inputs[example_idx], ncols=pre_seq_length, vmax=0.6, cbar=False, format='png', cmap='coolwarm',
+    show_video_line(inputs[example_idx], ncols=pre_seq_length, vmax=vmax, cbar=False, format='png', cmap=HeatTransfer.cmap,
                     out_path=f'./work_dirs/{ex_name}/saved/2dplate_input.png')
-    show_video_line(preds[example_idx], ncols=aft_seq_length, vmax=0.6, cbar=False, format='png', cmap='coolwarm',
+    show_video_line(preds[example_idx], ncols=aft_seq_length, vmax=vmax, cbar=False, format='png', cmap=HeatTransfer.cmap,
                     out_path=f'./work_dirs/{ex_name}/saved/2dplate_pred.png')
-    show_video_line(trues[example_idx], ncols=aft_seq_length, vmax=0.6, cbar=False, format='png', cmap='coolwarm',
+    show_video_line(trues[example_idx], ncols=aft_seq_length, vmax=vmax, cbar=False, format='png', cmap=HeatTransfer.cmap,
                     out_path=f'./work_dirs/{ex_name}/saved/2dplate_true.png')
     
     diff = np.abs(preds[example_idx] - trues[example_idx])
-    show_video_line(diff, ncols=aft_seq_length, vmax=0.6, cbar=False, format='png', cmap=cmap_diff,
+    show_video_line(diff, ncols=aft_seq_length, vmax=vmax, cbar=False, format='png', cmap=HeatTransfer.diff_cmap,
                     out_path=f'./work_dirs/{ex_name}/saved/2dplate_diff.png')
 
-    show_video_line_tsse(trues[example_idx], preds[example_idx], ncols=aft_seq_length, vmax=0.6, cbar=False, format='png',
-                         cmap='coolwarm',
+    show_video_line_tsse(trues[example_idx], preds[example_idx], ncols=aft_seq_length, vmax=vmax, cbar=False, format='png',
+                         cmap=HeatTransfer.cmap,
                          out_path=f'./work_dirs/{ex_name}/saved/2dplate_tsse.png')
 
-    show_video_gif_multiple(inputs[example_idx], trues[example_idx], preds[example_idx], cmap='coolwarm',
+    show_video_gif_multiple(inputs[example_idx], trues[example_idx], preds[example_idx], cmap=HeatTransfer.cmap,
                             out_path=f'./work_dirs/{ex_name}/saved/2dplate.gif')
 
     # Metric filenames

@@ -3,118 +3,8 @@ import time
 from enum import Enum
 import numpy as np
 import pickle
-from matplotlib.colors import LinearSegmentedColormap
 from openstl.utils import create_parser
-
-class Simulation:
-    def __init__(self, vmin, vmax, cmap, diff_cmap):
-        self.vmin = vmin
-        self.vmax = vmax
-        self.cmap = cmap
-        self.diff_cmap = diff_cmap
-    
-    def apply(self, arr, mask, iterations, save_history=True):
-        """
-        Simulates on a series of samples.
-
-        Arguments:
-        - samples: Numpy array of samples to apply the simulation to.
-        - mask: Numpy array mask to determine which cells in the samples will be updated.
-        - iterations: Number of iterations to apply the simulation.
-        - save_history: When True, each iteration's result is saved and returned in an array.
-
-        Returns:
-        - The final array of samples after applying the simulation.
-        - When save_history is True, also returns an array with the history of the iterations.
-        """
-        
-        return None, None
-
-class HeatTransfer(Simulation):
-    def __init__(self):
-        super().__init__(0.0, 1.0, 'coolwarm', LinearSegmentedColormap.from_list("white_to_green", ["white", "green"], N=256))
-
-    def apply(self, samples, mask, iterations, save_history=True):
-        """
-        Simulates heat transfer on a series of samples.
-
-        Arguments:
-        - samples: Numpy array of samples to apply the simulation to.
-        - mask: Numpy array mask to determine which cells in the samples will be updated.
-        - iterations: Number of iterations to apply the simulation.
-        - save_history: When True, each iteration's result is saved and returned in an array.
-
-        Returns:
-        - The final array of samples after applying the simulation.
-        - When save_history is True, also returns an array with the history of the iterations.
-        """
-        history = np.copy(samples)
-        new_samples = np.copy(samples)
-        for _ in range(iterations):
-            for i in range(len(samples)):
-                for j in range(len(samples[i])):
-                    if mask[i][j] == 1:
-                        continue
-
-                    total = 0
-                    count = 0
-
-                    for x in range(i - 1, i + 2):
-                        for y in range(j - 1, j + 2):
-                            if 0 <= x < len(samples) and 0 <= y < len(samples[i]):
-                                total += samples[x][y]
-                                count += 1
-
-                    new_samples[i][j] = total / count
-
-            samples, new_samples = new_samples, samples
-            if save_history:
-                history = np.append(history, np.copy(samples))
-
-        if save_history:
-            history = np.reshape(history, (-1, samples.shape[0], samples.shape[1]))
-
-        return (samples, np.array(history)) if save_history else (samples, None)
-
-class Boiling(Simulation):
-    def __init__(self, offset=0, increment=5):
-        super().__init__(0.0, 212.0, 'Reds', LinearSegmentedColormap.from_list("white_to_green", ["white", "green"], N=256))
-        self.offset = offset
-        self.increment = increment
-
-    def apply(self, samples, mask, iterations, save_history=True):
-        """
-        Simulates boiling on a series of samples.
-
-        Arguments:
-        - samples: Numpy array of samples to apply the simulation to.
-        - mask: Numpy array mask to determine which cells in the samples will be updated.
-        - iterations: Number of iterations to apply the simulation.
-        - save_history: When True, each iteration's result is saved and returned in an array.
-
-        Returns:
-        - The final array of samples after applying the simulation.
-        - When save_history is True, also returns an array with the history of the iterations.
-        """
-        history = np.copy(samples)
-        for _ in range(iterations + self.offset):
-            diffusion_to_each_neighbor = samples * (1 / 8)
-            samples = np.zeros_like(samples)
-            for dx in (-1, 0, 1):
-                for dy in (-1, 0, 1):
-                    if dx == 0 and dy == 0:
-                        continue
-                    samples += np.roll(np.roll(diffusion_to_each_neighbor, dx, axis=0), dy, axis=1)
-
-            samples = ((samples + self.increment) % self.vmax) + self.vmin
-
-            if save_history:
-                history = np.append(history, np.copy(samples))
-
-        if save_history:
-            history = np.reshape(history, (-1, samples.shape[0], samples.shape[1]))[self.offset:]
-
-        return (samples, np.array(history)) if save_history else (samples, None)
+from openstl.simulations import HeatTransfer, Boiling
 
 
 class ArrayType(Enum):
@@ -232,7 +122,7 @@ def create_samples(rows, cols, num_samples, total_frames, simulation, array_type
     
     return samples
 
-def normalize_data_min_max(data, min_val=0, max_val=212):
+def normalize_data_min_max(data, vmin, vmax):
     """
     Normalizes the dataset using min-max scaling to a range of [0, 1].
 
@@ -245,7 +135,7 @@ def normalize_data_min_max(data, min_val=0, max_val=212):
     - The normalized data scaled to range [0, 1].
     """
 
-    return (data - min_val) / (max_val - min_val)
+    return (data - vmin) / (vmax - vmin)
 
 def split_data(data, train_ratio=0.7, val_ratio=0.15):
     """
@@ -308,6 +198,7 @@ def create_local_parser():
     parser.add_argument('--dynamic_cells_random', type=bool, default=False)
     parser.add_argument('--offset', type=int, default=0)
     parser.add_argument('--increment', type=int, default=5)
+    parser.add_argument('--normalize', type=bool, default=True)
 
     parser.add_argument('--train_ratio', type=float, default=0.7)
     parser.add_argument('--val_ratio', type=float, default=0.15)
@@ -349,12 +240,13 @@ def main():
 
     elapsed = time.time() - start_time
     print(f"Generating {len(samples)} samples took {elapsed} seconds.")
-    
-    samples = normalize_data_min_max(samples)
+
+    if args.normalize:
+        samples = normalize_data_min_max(samples, simulation.vmin, simulation.vmax)
     split_pairs = split_data(samples, train_ratio=args.train_ratio, val_ratio=args.val_ratio)
 
     save_split(split_pairs, pre_seq_length, file_path)
-    
+
     if len(args.num_samples) > 1:
         for num_samples_additional in args.num_samples:
             train_amount = int(num_samples_additional * args.train_ratio)
