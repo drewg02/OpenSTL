@@ -232,6 +232,21 @@ def create_samples(rows, cols, num_samples, total_frames, simulation, array_type
     
     return samples
 
+def normalize_data_min_max(data, min_val=0, max_val=212):
+    """
+    Normalizes the dataset using min-max scaling to a range of [0, 1].
+
+    Arguments:
+    - data: The dataset to normalize.
+    - min_val: The minimum value of the input data.
+    - max_val: The maximum value of the input data.
+
+    Returns:
+    - The normalized data scaled to range [0, 1].
+    """
+
+    return (data - min_val) / (max_val - min_val)
+
 def split_data(data, train_ratio=0.7, val_ratio=0.15):
     """
     Splits the data into training, validation, and test sets.
@@ -335,6 +350,7 @@ def main():
     elapsed = time.time() - start_time
     print(f"Generating {len(samples)} samples took {elapsed} seconds.")
     
+    samples = normalize_data_min_max(samples)
     split_pairs = split_data(samples, train_ratio=args.train_ratio, val_ratio=args.val_ratio)
 
     save_split(split_pairs, pre_seq_length, file_path)
