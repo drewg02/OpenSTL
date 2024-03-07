@@ -1,13 +1,24 @@
 from .simulation import Simulation
 import numpy as np
 
-class Boiling(Simulation):
-    vmin, vmax, cmap, diff_cmap = 0.0, 212.0, 'PRGn', 'Oranges'
+default_args = {
+    'increment': 5
+}
 
-    def __init__(self, offset=0, increment=5):
+class Boiling(Simulation):
+    vmin, vmax, cmap, diff_cmap = 0.0, 212.0, 'Purples', 'Oranges'
+
+    def __init__(self, args=None):
         super().__init__()
-        self.offset = offset
-        self.increment = increment
+        if not args:
+            args = default_args
+
+        for key, value in default_args.items():
+            if not hasattr(args, key):
+                setattr(args, key, value)
+
+        self.args = args
+        self.increment = self.args.increment
 
     def apply(self, samples, mask, iterations, save_history=True):
         """
@@ -24,7 +35,7 @@ class Boiling(Simulation):
         - When save_history is True, also returns an array with the history of the iterations.
         """
         history = np.copy(samples)
-        for _ in range(iterations + self.offset):
+        for _ in range(iterations):
             diffusion_to_each_neighbor = samples * (1 / 8)
             samples = np.zeros_like(samples)
             for dx in (-1, 0, 1):
@@ -39,6 +50,6 @@ class Boiling(Simulation):
                 history = np.append(history, np.copy(samples))
 
         if save_history:
-            history = np.reshape(history, (-1, samples.shape[0], samples.shape[1]))[self.offset:]
+            history = np.reshape(history, (-1, samples.shape[0], samples.shape[1]))
 
         return (samples, np.array(history)) if save_history else (samples, None)

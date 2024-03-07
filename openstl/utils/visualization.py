@@ -64,52 +64,6 @@ def get_mpl_colormap(cmap_name):
     return color_range.reshape(256, 1, 3)
 
 
-def calculate_tsse(real_image, predicted_image):
-    squared_errors = (real_image - predicted_image) ** 2
-    return np.sum(squared_errors)
-
-
-def show_video_line_tsse(trues, preds, ncols, vmax=0.6, vmin=0.0, cmap='gray', norm=None, cbar=False, format='png', out_path=None, use_rgb=False):
-    """generate images with a video sequence and display TSSE between trues and preds"""
-    nrows = 2
-    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(3.25 * ncols, 6.5))
-    plt.subplots_adjust(wspace=0.1, hspace=0.1)
-
-    if len(trues.shape) > 3:
-        trues = trues.swapaxes(1,2).swapaxes(2,3)
-    if len(preds.shape) > 3:
-        preds = preds.swapaxes(1,2).swapaxes(2,3)
-
-    images = []
-    for t in range(ncols):
-        ax_true = axes[0, t]
-        true_img = cv2.cvtColor(trues[t], cv2.COLOR_BGR2RGB) if use_rgb else trues[t]
-        im_true = ax_true.imshow(true_img, cmap=cmap, norm=norm)
-        ax_true.axis('off')
-        im_true.set_clim(vmin, vmax)
-
-        ax_pred = axes[1, t]
-        pred_img = cv2.cvtColor(preds[t], cv2.COLOR_BGR2RGB) if use_rgb else preds[t]
-        im_pred = ax_pred.imshow(pred_img, cmap=cmap, norm=norm)
-        ax_pred.axis('off')
-        im_pred.set_clim(vmin, vmax)
-
-        tsse = calculate_tsse(trues[t], preds[t])
-        ax_pred.text(0.5, -0.1, f"TSSE: {tsse:.2f}", size=12, ha="center", transform=ax_pred.transAxes)
-
-        images.append(im_true)
-        images.append(im_pred)
-
-    if cbar and ncols > 1:
-        cbaxes = fig.add_axes([0.9, 0.15, 0.04 / ncols, 0.7 * nrows])
-        cbar = fig.colorbar(im_pred, ax=axes.ravel().tolist(), shrink=0.1, cax=cbaxes)
-
-    # plt.show()
-    if out_path is not None:
-        fig.savefig(out_path, format=format, pad_inches=0, bbox_inches='tight')
-    plt.close()
-
-
 def show_video_line(data, ncols, vmax=0.6, vmin=0.0, cmap='gray', norm=None, cbar=False, format='png', out_path=None, use_rgb=False):
     """generate images with a video sequence"""
     fig, axes = plt.subplots(nrows=1, ncols=ncols, figsize=(3.25 * ncols, 3))

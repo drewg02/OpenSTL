@@ -3,6 +3,10 @@ import numpy as np
 
 class HeatTransfer(Simulation):
     vmin, vmax, cmap, diff_cmap = 0.0, 1.0, 'coolwarm', 'Greens'
+    
+    def __init__(self, args=None):
+        super().__init__(args)
+        self.args = args
 
     def apply(self, samples, mask, iterations, save_history=True):
         """
