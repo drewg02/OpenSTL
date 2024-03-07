@@ -58,11 +58,14 @@ def main():
     pre_seq_length = pre_seq_length or (total_length - aft_seq_length if aft_seq_length else None)
 
     if not is_dict:
+        if args.num_samples:
+            dataset = dataset[:args.num_samples]
+
         if total_length != dataset.shape[1]:
             dataset = dataset[:, :total_length, ...]
 
-        if args.num_samples:
-            dataset = dataset[:args.num_samples]
+        if args.offset:
+            dataset = dataset[:, args.offset:, ...]
 
         if args.normalize:
             dataset = normalize_data_min_max(dataset, simulation.vmin, simulation.vmax)
