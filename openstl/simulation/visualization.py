@@ -3,7 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import cv2
-import pickle
 from skimage.metrics import structural_similarity as ssim, mean_squared_error
 
 
@@ -253,19 +252,40 @@ def save_result_visualizations(ex_name, pre_seq_length, aft_seq_length, simulati
     if train_loss is not None and vali_loss is not None:
         plot_combined_loss(train_loss, vali_loss, save_folder)
 
-def save_dataset_visualizations(dataset_path, pre_seq_length, aft_seq_length, simulation, save_path="", normalized=True):
-    vmax = (1 if normalized else simulation.vmax)
-    prefix = simulation.__name__.lower()
 
-    with open(dataset_path, 'rb') as f:
-        dataset = pickle.load(f)
+def save_dataset_visualization(dataset, simulation_class, start_index=0, end_index=1, start_frame_index=0, end_frame_index=None, single=False, save_path="", normalized=True):
+    vmax = 1 if normalized else simulation_class.vmax
+    prefix = simulation_class.__name__.lower()
 
-    example_idx = 0
-    for X in ['X_train', 'X_val', 'X_test']:
-        show_video_line(dataset[X][example_idx], ncols=pre_seq_length, vmax=vmax, vmin=0, cbar=False, format='png',
-                        cmap=simulation.cmap,
-                        out_path=f'{save_path}/{prefix}_{X}_input{0}.png')
-    for y in ['Y_train', 'Y_val', 'Y_test']:
-        show_video_line(dataset[y][example_idx], ncols=aft_seq_length, vmax=vmax, vmin=0, cbar=False, format='png',
-                        cmap=simulation.cmap,
-                        out_path=f'{save_path}/{prefix}_{y}_true{0}.png')
+    if isinstance(dataset, dict):
+        process_dataset(dataset, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax, simulation_class.cmap, save_path)
+    elif isinstance(dataset, np.ndarray):
+        process_array(dataset, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax, simulation_class.cmap, save_path)
+    else:
+        raise ValueError("Dataset must be either a dictionary of numpy arrays or a numpy array.")
+
+def process_dataset(dataset, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax, cmap, save_path):
+    for key, value in dataset.items():
+        process_data(value, key, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax, cmap, save_path)
+
+def process_array(data, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax, cmap, save_path):
+    process_data(data, None, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax, cmap, save_path)
+
+def process_data(data, key, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax, cmap, save_path):
+    length = data.shape[0]
+    for index in range(min(start_index, length), min(end_index, length)):
+        data_to_save = data[index][start_frame_index:end_frame_index]
+        save_data(data_to_save, key, index, start_frame_index, end_frame_index, single, prefix, vmax, cmap, save_path)
+
+def save_data(data, key, index, start_frame_index, end_frame_index, single, prefix, vmax, cmap, save_path):
+    if single:
+        for frame_index in range(data.shape[0]):
+            frame_data = data[frame_index]
+            save_frames(frame_data, key, prefix, f'sample-{index}', f'frame-{start_frame_index + frame_index}', vmax, cmap, save_path)
+    else:
+        save_frames(data, key, prefix, f'sample-{index}', f'frames-{start_frame_index}-to-{end_frame_index if end_frame_index else data.shape[0] - 1}', vmax, cmap, save_path)
+
+def save_frames(data, key, prefix, index, frame_index, vmax, cmap, save_path):
+    filename = f"{prefix}{f'_{key}' if key else ''}_{index}_{frame_index}"
+    out_path = f'{save_path}/{filename}.png'
+    show_video_line(data, ncols=data.shape[0], vmax=vmax, vmin=0, cbar=False, format='png', cmap=cmap, out_path=out_path)
