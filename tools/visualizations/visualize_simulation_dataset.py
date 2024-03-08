@@ -43,7 +43,7 @@ def main():
     dataset = load_data(args.datafile_in)  # Load the dataset.
 
     # Begin the visualization process, tracking the time taken.
-    print(f'Starting visualization of dataset {args.dataset_in}')
+    print(f'Starting visualization of dataset {args.datafile_in}')
     start_time = time.time()
 
     # Generate visualizations for the specified dataset range and save them to the designated path.
