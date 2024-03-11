@@ -5,17 +5,16 @@ from openstl.simulation.utils import create_parser, load_data, create_dataloader
 def main():
     args = create_parser().parse_args()
 
-    ex_name = args.ex_name
-    file_path = args.datafile
-    batch_size = args.batch_size
-    pre_seq_length = getattr(args, 'pre_seq_length', 10)
-    aft_seq_length = getattr(args, 'aft_seq_length', 10)
+    if not args.train and not args.test:
+        raise ValueError("At least one of the 'train' or 'test' flags must be provided.")
 
-    dataset = load_data(file_path)
-    dataloader_train, dataloader_val, dataloader_test = create_dataloaders(dataset, batch_size)
+    dataset = load_data(args.datafile_in)
+    dataloader_train, dataloader_val, dataloader_test = create_dataloaders(dataset, args.batch_size)
 
-    custom_training_config, custom_model_config = generate_configs(ex_name, pre_seq_length, aft_seq_length, batch_size,
-                                                                   args)
+    pre_seq_length, aft_seq_length = dataset['X_train'].shape[1], dataset['Y_train'].shape[1]
+    image_height, image_width = dataset['X_train'].shape[3], dataset['X_train'].shape[4]
+    custom_training_config, custom_model_config = generate_configs(pre_seq_length, aft_seq_length,
+                                                                   image_height, image_width, args)
 
     config = args.__dict__
 
@@ -29,10 +28,10 @@ def main():
     exp = BaseExperiment(args, dataloaders=(dataloader_train, dataloader_val, dataloader_test))
     
     if args.train:
-        print('>' * 35 + f' training {ex_name} ' + '<' * 35)
+        print('>' * 35 + f' training {args.ex_name} ' + '<' * 35)
         exp.train()
     if args.test:
-        print('>' * 35 + f' testing {ex_name}  ' + '<' * 35)
+        print('>' * 35 + f' testing {args.ex_name}  ' + '<' * 35)
         exp.test()
 
 if __name__ == '__main__':

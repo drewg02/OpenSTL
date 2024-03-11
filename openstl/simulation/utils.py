@@ -37,7 +37,7 @@ def create_parser():
     parser.add_argument('--resume_from', type=str, default=None, help='the checkpoint file to resume from')
     parser.add_argument('--auto_resume', action='store_true', default=False,
                         help='When training was interupted, resume from the latest checkpoint')
-    # parser.add_argument('--test', action='store_true', default=False, help='Only performs testing')
+    parser.add_argument('--test', action='store_true', default=False, help='Perform testing')
     parser.add_argument('--inference', '-i', action='store_true', default=False, help='Only performs inference')
     parser.add_argument('--deterministic', action='store_true', default=False,
                         help='whether to set deterministic options for CUDNN backend (reproducable)')
@@ -127,11 +127,8 @@ def create_parser():
 
     # Simulation parameters
     parser.add_argument('--train', action='store_true', default=False, help='Perform training')
-    parser.add_argument('--visualize', action='store_true', default=False, help='Visualize the results when testing')
-
-    parser.add_argument('--image_height', type=int, default=64)
-    parser.add_argument('--image_width', type=int, default=64)
-    parser.add_argument('--datafile', type=str, default='data/2dplate/dataset.pkl')
+    parser.add_argument('--datafile_in', type=str, required=True,
+                        help='Specifies the input data file path.')
 
     return parser
 
@@ -139,7 +136,7 @@ def create_parser():
 def create_dataloaders(dataset, batch_size):
     dataloader_train, dataloader_val = None, None
     if 'X_train' in dataset and 'X_val' in dataset:
-        x_train, X_val, X_test = dataset['X_train'], dataset['X_val'], dataset['X_test']
+        X_train, X_val, X_test = dataset['X_train'], dataset['X_val'], dataset['X_test']
         Y_train, Y_val, Y_test = dataset['Y_train'], dataset['Y_val'], dataset['Y_test']
 
         train_set = SimulationDataset(X=X_train, Y=Y_train)
@@ -163,20 +160,20 @@ def create_dataloaders(dataset, batch_size):
         return dataloader_test
 
 
-def generate_configs(ex_name, pre_seq_length, aft_seq_length, batch_size, args):
+def generate_configs(pre_seq_length, aft_seq_length, image_height, image_width, args):
     custom_training_config = {
         'pre_seq_length': pre_seq_length,
         'aft_seq_length': aft_seq_length,
         'total_length': pre_seq_length + aft_seq_length,
-        'batch_size': batch_size,
-        'val_batch_size': batch_size,
+        'batch_size': args.batch_size,
+        'val_batch_size': args.batch_size,
         'epoch': args.epoch,
         'lr': args.lr,
         'metrics': ['mse', 'mae'],
 
-        'ex_name': ex_name,
+        'ex_name': args.ex_name,
         'dataname': '2dplate',
-        'in_shape': [pre_seq_length, 1, args.image_height, args.image_width],
+        'in_shape': [pre_seq_length, 1, image_height, image_width],
     }
 
     custom_model_config = {
