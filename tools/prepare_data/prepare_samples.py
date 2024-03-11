@@ -1,4 +1,5 @@
 import os
+import numpy as np
 
 from openstl.utils import create_parser
 
@@ -65,7 +66,7 @@ def main():
         raise ValueError(f"train_ratio ({args.train_ratio}) + val_ratio ({args.val_ratio}) must be less than 1.0")
 
     dataset = load_data(args.datafile_in)  # Load the dataset.
-    is_dict = isinstance(dataset, dict)  # Check if the dataset is a dictionary.
+    is_dict = type(dataset) is dict  # Check if the dataset is a dictionary.
 
     # Determine the sequence lengths for processing.
     pre_seq_length, aft_seq_length = None, None
@@ -79,7 +80,8 @@ def main():
     # Process dataset based on provided arguments.
     if not is_dict:
         if args.num_samples:
-            dataset = dataset[:args.num_samples]
+            indices = np.random.choice(dataset.shape[0], args.num_samples, replace=False)
+            dataset = dataset[indices]
         if total_length != dataset.shape[1]:
             dataset = dataset[:, :total_length, ...]
         if args.offset:

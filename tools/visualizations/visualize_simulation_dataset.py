@@ -20,7 +20,7 @@ def main():
 
     parser.add_argument('--start_frame_index', type=int, default=0,
                         help='Specifies the start index of the frames for visualization.')
-    parser.add_argument('--end_frame_index', type=int, default=1,
+    parser.add_argument('--end_frame_index', type=int, default=None,
                         help='Specifies the end index of the frames for visualization.')
 
     parser.add_argument('--output_single_images', action='store_true',

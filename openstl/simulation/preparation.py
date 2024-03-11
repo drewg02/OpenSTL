@@ -29,8 +29,8 @@ def train_val_test_split_data(dataset, train_ratio=0.7, val_ratio=0.15):
     - A dictionary with 'train', 'val', and 'test' keys, each of which contains their respective split of the data.
     """
     np.random.shuffle(dataset)
-    train_size = int(len(dataset) * train_ratio)
-    val_size = int(len(dataset) * val_ratio)
+    train_size = round(len(dataset) * train_ratio)
+    val_size = round(len(dataset) * val_ratio)
     test_size = len(dataset) - train_size - val_size
 
     return {
