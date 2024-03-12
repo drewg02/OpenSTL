@@ -59,7 +59,7 @@ def calculate_mape(actual, forecast):
 
 
 def show_video_line_metrics(metrics, trues, preds, ncols, vmax=1.0, vmin=0, cmap='gray', norm=None, cbar=False,
-                            format='png', out_path=None, use_rgb=False):
+                            format='png', out_path=None):
     nrows = 2
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(3.25 * ncols, 6.5))
     plt.subplots_adjust(wspace=0.1, hspace=0.1)
@@ -146,7 +146,6 @@ def plot_combined_loss(train_loss, vali_loss, folder_path):
 
 
 def calculate_column_metrics(trues, preds):
-    # Assuming trues and preds are of shape (n_rows, n_images_per_row, height, width)
     n_columns = trues.shape[1]
     metrics = {'SSIM': [], 'MSE': [], 'MAE': [], 'MAPE': [], 'TSSE': []}
 
@@ -162,7 +161,6 @@ def calculate_column_metrics(trues, preds):
             mape_values.append(calculate_mape(true_img, pred_img))
             tsse_values.append(calculate_tsse(true_img, pred_img))
 
-        # Calculate the mean of each metric for the current column
         metrics['SSIM'].append(np.mean(ssim_values))
         metrics['MSE'].append(np.mean(mse_values))
         metrics['MAE'].append(np.mean(mae_values))
@@ -191,15 +189,17 @@ def save_metrics_statistics(metrics, output_path):
         plt.savefig(plot_output_path)
         plt.close()
 
-def save_result_visualizations(ex_name, pre_seq_length, aft_seq_length, simulation, normalized=True):
-    save_folder = f'./work_dirs/{ex_name}/saved'
+def save_result_visualizations(res_dir, ex_name, simulation, normalized=True):
+    save_folder = f'./{res_dir}/{ex_name}/saved'
 
     inputs = np.load(f'{save_folder}/inputs.npy')
-    preds = np.load(f'{save_folder}/preds.npy')
     trues = np.load(f'{save_folder}/trues.npy')
+    preds = np.load(f'{save_folder}/preds.npy')
 
     vmax = (1 if normalized else simulation.vmax)
     prefix = simulation.__name__.lower()
+
+    pre_seq_length, aft_seq_length = inputs.shape[1], trues.shape[1]
 
     example_idx = 0
 
@@ -222,19 +222,17 @@ def save_result_visualizations(ex_name, pre_seq_length, aft_seq_length, simulati
                             out_path=f'{save_folder}/{prefix}.gif')
 
     metrics = calculate_column_metrics(trues, preds)
-    output_path = f'./work_dirs/{ex_name}/saved/metrics_statistics'
+    output_path = f'{save_folder}/metrics_statistics'
     save_metrics_statistics(metrics, output_path)
 
     for idx in range(0, min(trues.shape[0], 5)):
         show_video_line_metrics(metrics, trues[idx], preds[idx], ncols=aft_seq_length, vmax=212, vmin=0, cbar=False,
                                 format='png',
                                 cmap='Reds',
-                                out_path=f'./work_dirs/{ex_name}/saved/2dplate_metrics_{idx}.png')
+                                out_path=f'{save_folder}/2dplate_metrics_{idx}.png')
 
-    # Metric filenames
     metric_files = ['mse.npy', 'mae.npy', 'lr.npy', 'train_loss.npy', 'vali_loss.npy']
 
-    # Load and plot each metric
     train_loss, vali_loss = None, None
     for metric_file in metric_files:
         metric_path = os.path.join(save_folder, metric_file)
