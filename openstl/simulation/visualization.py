@@ -226,10 +226,10 @@ def save_result_visualizations(res_dir, ex_name, simulation, normalized=True):
     save_metrics_statistics(metrics, output_path)
 
     for idx in range(0, min(trues.shape[0], 5)):
-        show_video_line_metrics(metrics, trues[idx], preds[idx], ncols=aft_seq_length, vmax=212, vmin=0, cbar=False,
+        show_video_line_metrics(metrics, trues[idx], preds[idx], ncols=aft_seq_length, vmax=vmax, vmin=0, cbar=False,
                                 format='png',
-                                cmap='Reds',
-                                out_path=f'{save_folder}/2dplate_metrics_{idx}.png')
+                                cmap=simulation.cmap,
+                                out_path=f'{save_folder}/{prefix}_metrics_{idx}.png')
 
     metric_files = ['mse.npy', 'mae.npy', 'lr.npy', 'train_loss.npy', 'vali_loss.npy']
 
