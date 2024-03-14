@@ -22,6 +22,14 @@ def update_array(array, mask, array_type, vmin=0.0, vmax=1.0, thickness=1, chanc
     Returns:
     - The final array and mask after updating.
     """
+
+    # if the user set the chance to None or <= 0, then each time we want to select a new
+    # random chance for just this call - creating a more diverse dataset - one that isn't
+    # just trained on 20% chance samples, for instance.
+    if chance is None or chance <= 0:
+        chance = np.random.random()
+        print(f"Chance was None (or <= 0) - so this initial condition we will use randomly chosen chance of: {chance}")
+
     rows, cols = array.shape
     if array_type == ArrayType.OUTLINE:
         array[:thickness, :] = array[-thickness:, :] = array[:, :thickness] = array[:, -thickness:] = vmax
