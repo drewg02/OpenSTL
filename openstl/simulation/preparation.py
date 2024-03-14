@@ -60,3 +60,38 @@ def X_Y_split_data(dataset, pre_seq_length):
         data['Y'] = dataset[:, pre_seq_length:, ...]
 
     return data
+
+
+def random_samples_split_data(dataset, num_random_samples, total_length):
+    """
+    Splits each sample in the dataset into multiple samples.
+
+    Arguments:
+    - dataset: The dataset to split.
+    - num_random_samples: The number of random samples to create from each sample.
+    - total_length: The length of the new samples.
+
+    Returns:
+    - A new dataset with each sample split into multiple samples.
+    """
+
+    if type(dataset) is dict:
+        new_dataset = {}
+        for split in ['train', 'val', 'test']:
+            new_dataset[split] = split_sample(dataset[split], num_random_samples, total_length)
+    else:
+        new_dataset = split_sample(dataset, num_random_samples, total_length)
+
+    return new_dataset
+
+def split_sample(sample, num_random_samples, total_length):
+    new_samples = np.zeros((num_random_samples * sample.shape[0], total_length, *sample.shape[2:]), dtype=sample.dtype)
+
+    for i in range(sample.shape[0]):
+        for j in range(num_random_samples):
+            start = np.random.randint(0, sample.shape[1] - total_length)
+            new_samples[i * num_random_samples + j] = sample[i, start:start + total_length, ...]
+
+    print(new_samples)
+
+    return new_samples
