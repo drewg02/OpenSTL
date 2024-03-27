@@ -1,12 +1,11 @@
 import os
 import time
-import numpy as np
 
 from openstl.utils import create_parser
 
 from openstl.simulation.simulations import simulations
-from openstl.simulation.generation import ArrayType, create_samples
-from openstl.simulation.utils import save_data, get_simulation_class, get_seq_lengths
+from openstl.simulation.generation import create_samples
+from openstl.simulation.utils import get_simulation_class, get_seq_lengths
 
 
 # Create a parser with additional arguments specific to dataset generation.
@@ -19,36 +18,20 @@ def create_local_parser():
 
     parser.add_argument('--num_samples', type=int,
                         help='Specifies the number of samples.', required=True)
-    parser.add_argument('--image_height', type=int, default=64,
-                        help='Specifies the image height.')
-    parser.add_argument('--image_width', type=int, default=64,
-                        help='Specifies the image width.')
 
-    parser.add_argument('--array_type', type=ArrayType, default=ArrayType.RANDOM,
-                        help='Defines the array type.')
-    parser.add_argument('--chance', type=float, default=0.1,
-                        help='Sets the chance parameter.')
-    parser.add_argument('--thickness', type=int, default=1)
-    parser.add_argument('--static_cells_random', action='store_true')
-    parser.add_argument('--dynamic_cells_random', action='store_true')
     parser.add_argument('--increment', type=int, default=5,
                         help="Only applies to Boiling simulation, sets the increment value.")
 
-    parser.add_argument('--datafile_out', type=str, required=True,
-                        help='Specifies the data file path.')
-    parser.add_argument('--preserve_datafile', action='store_true',
-                        help='If set, the script will not overwrite the existing data file.')
+    parser.add_argument('--datafolder_in', type=str, required=True,
+                        help='Specifies the data folder in path.')
+    parser.add_argument('--datafolder_out', type=str, required=True,
+                        help='Specifies the data folder out path.')
 
     return parser
 
 
 def main():
     args = create_local_parser().parse_args()  # Parse the command line arguments.
-
-    # Check if the data file should be preserved and exists.
-    if args.preserve_datafile and os.path.exists(args.datafile_out):
-        print(f"File {args.datafile_out} already exists.")
-        return
 
     # Get the simulation class.
     simulation_class = get_simulation_class(args.simulation)
@@ -64,16 +47,10 @@ def main():
 
     start_time = time.time()  # Record the start time.
     # Generate samples based on the provided parameters.
-    samples = create_samples(args.image_height, args.image_width, args.num_samples, total_length, simulation,
-                             args.array_type, args.thickness, args.chance, args.static_cells_random,
-                             args.dynamic_cells_random, verbose=True)
-    # Reshape the samples into the correct format.
-    samples = np.reshape(samples, (args.num_samples, total_length, 1, args.image_height, args.image_width))
+    create_samples(args.num_samples, total_length, simulation, args.datafolder_in, args.datafolder_out, verbose=True)
 
     elapsed = time.time() - start_time  # Calculate the elapsed time.
-    print(f"Generating {len(samples)} samples took {elapsed} seconds.")  # Print the time taken to generate samples.
-
-    save_data(samples, args.datafile_out)  # Save the generated samples to the specified file.
+    print(f"Generating {args.num_samples} samples took {elapsed} seconds.")  # Print the time taken to generate samples.
 
 
 if __name__ == '__main__':

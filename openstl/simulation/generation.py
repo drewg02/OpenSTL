@@ -90,7 +90,7 @@ def create_array(rows, cols, array_type, vmin=0.0, vmax=1.0, thickness=1, chance
     return arr, mask
 
 
-def create_samples(rows, cols, num_samples, total_frames, simulation, array_type, thickness=1, chance=0.2,
+def create_initials(rows, cols, num_initials, simulation, array_type, datafolder_out, thickness=1, chance=0.2,
                    static_cells_random=False, dynamic_cells_random=False, verbose=True):
     """
     Generates a series of samples with initial conditions and applies a stencil over iterations.
@@ -98,31 +98,62 @@ def create_samples(rows, cols, num_samples, total_frames, simulation, array_type
     Arguments:
     - rows: Number of rows in the array.
     - cols: Number of columns in the array.
-    - num_samples: Number of samples to generate.
-    - total_frames: Number of frames for each sample.
-    - array_type: The ArrayType for the initial conditions of the array.
-    - vmax: The maximum value to use when filling the array.
-    - vmin: The minimum value to use when filling the array.
+    - num_initials: Number of initials to generate.
+    - simulation: The Simulation class used to generate the initials.
+    - array_type: The ArrayType for the initial condition.
+    - save_path: The path to save the initials.
     - thickness: Thickness for the lines in OUTLINE, CENTER and PLUS array types.
     - chance: Probability used for RANDOM and RANDOM_UNIFORM array types.
     - static_cells_random: For RANDOM array type. When True it fills the array with random values instead of the vmax where the mask is 1.
     - dynamic_cells_random: For RANDOM array type. When True it fills the array with random values instead of the vmin where the mask is 1.
+    - verbose: If True, prints the progress of the generation.
 
-    Returns:
-    - A 4D numpy array representing the samples over the iterations.
+    Returns: None
+    """
+
+    start_time = time.time()
+    last_progress = 0
+    for i in range(num_initials):
+        arr, mask = create_array(rows, cols, array_type, simulation.vmin, simulation.vmax, thickness, chance,
+                                 static_cells_random, dynamic_cells_random)
+
+        np.save(f'{datafolder_out}/initial_{i}.npy', arr)
+
+        progress = ((i + 1) / num_initials) * 100
+        if verbose and progress - last_progress >= 1:
+            last_progress = progress
+            elapsed_time = time.time() - start_time
+            print(f"{progress:.2f}% done, generated {i + 1}/{num_initials} initials, {elapsed_time:.2f} seconds elapsed")
+
+
+def create_samples(num_samples, total_frames, simulation, datafolder_in, datafolder_out, verbose=True):
+    """
+    Generates a series of samples with initial conditions and applies a stencil over iterations.
+
+    Arguments:
+    - num_samples: Number of samples to generate.
+    - total_frames: Number of frames for each sample.
+    - simulation: The Simulation class used to apply the simulation.
+    - save_path: The path to save the initials.
+    - verbose: If True, prints the progress of the generation.
+
+    Returns: Nones
     """
     start_time = time.time()
     last_progress = 0
-    samples = np.empty((num_samples, total_frames, rows, cols), dtype=np.float32)
     for i in range(num_samples):
-        arr, mask = create_array(rows, cols, array_type, simulation.vmin, simulation.vmax, thickness, chance,
-                                 static_cells_random, dynamic_cells_random)
-        _, samples[i] = simulation.apply(arr, mask, total_frames - 1, save_history=True)
+        try:
+            arr = np.load(f'{datafolder_in}/initial_{i}.npy')
+        except FileNotFoundError:
+            print(f"Initial condition {i} not found, stopping generation.")
+            return
+
+        _, samples = simulation.apply(arr, arr, total_frames - 1, save_history=True)
+
+        np.save(f'{datafolder_out}/sample_{i}.npy', samples)
 
         progress = ((i + 1) / num_samples) * 100
         if verbose and progress - last_progress >= 1:
             last_progress = progress
             elapsed_time = time.time() - start_time
             print(f"{progress:.2f}% done, generated {i + 1}/{num_samples} samples, {elapsed_time:.2f} seconds elapsed")
-
-    return samples

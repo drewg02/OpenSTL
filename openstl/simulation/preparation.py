@@ -1,4 +1,6 @@
+import os
 import numpy as np
+
 
 def normalize_data_min_max(dataset, vmin, vmax):
     """
@@ -15,52 +17,30 @@ def normalize_data_min_max(dataset, vmin, vmax):
 
     return (dataset - vmin) / (vmax - vmin)
 
+def train_val_test_split_files(data_folder, train_ratio, val_ratio, num_samples=None):
+    file_paths = [os.path.join(data_folder, f) for f in os.listdir(data_folder) if f.endswith('.npy')]
 
-def train_val_test_split_data(dataset, train_ratio=0.7, val_ratio=0.15):
-    """
-    Splits the dataset into training, validation, and test sets.
+    if num_samples is not None:
+        file_paths = np.random.choice(file_paths, min(num_samples, len(file_paths)), replace=False).tolist()
 
-    Arguments:
-    - dataset: The dataset to split.
-    - train_ratio: Proportion of the dataset to include in the training set.
-    - val_ratio: Proportion of the dataset to include in the validation set.
+    np.random.shuffle(file_paths)
 
-    Returns:
-    - A dictionary with 'train', 'val', and 'test' keys, each of which contains their respective split of the data.
-    """
-    np.random.shuffle(dataset)
-    train_size = round(len(dataset) * train_ratio)
-    val_size = round(len(dataset) * val_ratio)
-    test_size = len(dataset) - train_size - val_size
+    train_size = int(len(file_paths) * train_ratio)
+    val_size = int(len(file_paths) * val_ratio)
 
-    return {
-        'train': dataset[:train_size],
-        'val': dataset[train_size:train_size + val_size],
-        'test': dataset[-test_size:]
-    }
+    train_files = file_paths[:train_size] if train_ratio > 0 else []
+    val_files = file_paths[train_size:train_size + val_size] if val_ratio > 0 else []
+    test_files = file_paths[train_size + val_size:] if train_ratio + val_ratio < 1 else []
 
+    splits = {}
+    if train_files:
+        splits['train'] = train_files
+    if val_files:
+        splits['val'] = val_files
+    if test_files:
+        splits['test'] = test_files
 
-def X_Y_split_data(dataset, pre_seq_length):
-    """
-    Saves the split data into a numpy pickle file in input and output pairs (X and Y respectively).
-
-    Arguments:
-    - dataset: A dictionary with 'train', 'val', and 'test' keys, each of which contains their respective split of the data.
-    - pre_seq_length: The length of the sequence that is the input for the model.
-    - file_path: The path to the file where the data will be saved.
-    """
-
-    data = {}
-    if type(dataset) is dict:
-        for split in ['train', 'val', 'test']:
-            data['X_' + split] = dataset[split][:, :pre_seq_length, ...]
-            data['Y_' + split] = dataset[split][:, pre_seq_length:, ...]
-    else:
-        data['X'] = dataset[:, :pre_seq_length, ...]
-        data['Y'] = dataset[:, pre_seq_length:, ...]
-
-    return data
-
+    return splits
 
 def random_samples_split_data(dataset, num_random_samples, total_length):
     """
@@ -91,7 +71,5 @@ def split_sample(sample, num_random_samples, total_length):
         for j in range(num_random_samples):
             start = np.random.randint(0, sample.shape[1] - total_length)
             new_samples[i * num_random_samples + j] = sample[i, start:start + total_length, ...]
-
-    print(new_samples)
 
     return new_samples

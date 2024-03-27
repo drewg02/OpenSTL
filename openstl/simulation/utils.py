@@ -1,7 +1,9 @@
 import argparse
 import pickle
-import torch
 import os
+import json
+
+from torch.utils.data import DataLoader
 
 from openstl.simulation import SimulationDataset
 from openstl.simulation.simulations import simulations
@@ -127,37 +129,32 @@ def create_parser():
 
     # Simulation parameters
     parser.add_argument('--train', action='store_true', default=False, help='Perform training')
-    parser.add_argument('--datafile_in', type=str, required=True,
+    parser.add_argument('--datafolder_in', type=str, required=True,
                         help='Specifies the input data file path.')
 
     return parser
 
+def create_data_loader(datafolder_in, file_name, pre_seq_length=10, aft_seq_length=10, batch_size=16, shuffle=False):
+    file_path = os.path.join(datafolder_in, file_name)
 
-def create_dataloaders(dataset, batch_size):
-    dataloader_train, dataloader_val = None, None
-    if 'X_train' in dataset and 'X_val' in dataset:
-        X_train, X_val, X_test = dataset['X_train'], dataset['X_val'], dataset['X_test']
-        Y_train, Y_val, Y_test = dataset['Y_train'], dataset['Y_val'], dataset['Y_test']
+    if not os.path.exists(file_path):
+        return None
 
-        train_set = SimulationDataset(X=X_train, Y=Y_train)
-        val_set = SimulationDataset(X=X_val, Y=Y_val)
-        test_set = SimulationDataset(X=X_test, Y=Y_test)
+    with open(file_path, 'r') as f:
+        file_paths = json.load(f)
 
-        dataloader_train = torch.utils.data.DataLoader(
-            train_set, batch_size=batch_size, shuffle=True, pin_memory=True)
-        dataloader_val = torch.utils.data.DataLoader(
-            val_set, batch_size=batch_size, shuffle=True, pin_memory=True)
-    else:
-        X_test, Y_test = dataset['X'], dataset['Y']
-        test_set = SimulationDataset(X=X_test, Y=Y_test)
+    if not file_paths:
+        return None
 
-    dataloader_test = torch.utils.data.DataLoader(
-        test_set, batch_size=batch_size, shuffle=False, pin_memory=True)
+    dataset = SimulationDataset(file_paths, pre_seq_length, aft_seq_length)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
-    if dataloader_train and dataloader_val:
-        return dataloader_train, dataloader_val, dataloader_test
-    else:
-        return dataloader_test
+def load_data_loaders(datafolder_in, pre_seq_length=10, aft_seq_length=10, batch_size=16, val_batch_size=16, test_batch_size=16):
+    train_loader = create_data_loader(datafolder_in, 'train_files.json', pre_seq_length, aft_seq_length, batch_size, True)
+    val_loader = create_data_loader(datafolder_in, 'val_files.json', pre_seq_length, aft_seq_length, val_batch_size, True)
+    test_loader = create_data_loader(datafolder_in, 'test_files.json', pre_seq_length, aft_seq_length, test_batch_size, True)
+
+    return train_loader, val_loader, test_loader
 
 
 def generate_configs(pre_seq_length, aft_seq_length, image_height, image_width, args):
@@ -169,7 +166,7 @@ def generate_configs(pre_seq_length, aft_seq_length, image_height, image_width, 
         'val_batch_size': args.batch_size,
         'epoch': args.epoch,
         'lr': args.lr,
-        'metrics': ['mse', 'mae'],
+        'metrics': ['mse', 'mae', 'ssim'],
 
         'ex_name': args.ex_name,
         'dataname': '2dplate',
@@ -177,34 +174,29 @@ def generate_configs(pre_seq_length, aft_seq_length, image_height, image_width, 
     }
 
     custom_model_config = {
-        'method': 'E3DLSTM',
-        # reverse scheduled sampling
-        'reverse_scheduled_sampling': 0,
-        'r_sampling_step_1': 25000,
-        'r_sampling_step_2': 50000,
-        'r_exp_alpha': 5000,
-        # scheduled sampling
-        'scheduled_sampling': 1,
-        'sampling_stop_iter': 50000,
-        'sampling_start_value': 1.0,
-        'sampling_changing_rate': 0.00002,
+        'method': 'SimVP',
         # model
-        'num_hidden': '128,128,128,128',
-        'filter_size': 5,
-        'stride': 1,
-        'patch_size': 4,
-        'layer_norm': 0,
+        'spatio_kernel_enc': 3,
+        'spatio_kernel_dec': 3,
+        # model_type = None  # define `model_type` in args
+        'hid_S': 64,
+        'hid_T': 512,
+        'N_T': 8,
+        'N_S': 4,
+        # training
+        'lr': 1e-3,
+        'batch_size': 16,
+        'drop_path': 0,
+        'sched': 'onecycle'
     }
 
     return custom_training_config, custom_model_config
-
 
 def get_simulation_class(simulation_name):
     simulation_class = [simulation for simulation in simulations if simulation.__name__ == simulation_name]
     if not simulation_class:
         raise ValueError(f"Invalid simulation: {simulation_name}")
     return simulation_class[0]
-
 
 def get_seq_lengths(args):
     pre_seq_length = args.pre_seq_length
@@ -218,17 +210,6 @@ def get_seq_lengths(args):
             f"pre_seq_length ({pre_seq_length}) + aft_seq_length ({aft_seq_length}) must be equal to total_length ({total_length})")
 
     return pre_seq_length, aft_seq_length, total_length
-
-
-
-def save_data(dataset, file_path):
-    folder_path = os.path.dirname(file_path)
-    if folder_path and not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-
-    with open(file_path, 'wb') as f:
-        pickle.dump(dataset, f)
-
 
 def load_data(file_path):
     with open(file_path, 'rb') as f:

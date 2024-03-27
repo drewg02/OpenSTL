@@ -1,6 +1,6 @@
 from openstl.api import BaseExperiment
 from openstl.utils import default_parser
-from openstl.simulation.utils import create_parser, load_data, create_dataloaders, generate_configs
+from openstl.simulation.utils import create_parser, load_data_loaders, generate_configs
 
 def main():
     args = create_parser().parse_args()
@@ -8,12 +8,15 @@ def main():
     if not args.train and not args.test:
         raise ValueError("At least one of the 'train' or 'test' flags must be provided.")
 
-    dataset = load_data(args.datafile_in)
-    dataloader_train, dataloader_val, dataloader_test = create_dataloaders(dataset, args.batch_size)
+    dataloader_train, dataloader_val, dataloader_test = load_data_loaders(args.datafolder_in,
+                                                                          args.pre_seq_length,
+                                                                          args.aft_seq_length,
+                                                                          args.batch_size,
+                                                                          args.val_batch_size,
+                                                                          args.val_batch_size)
 
-    pre_seq_length, aft_seq_length = dataset['X_train'].shape[1], dataset['Y_train'].shape[1]
-    image_height, image_width = dataset['X_train'].shape[3], dataset['X_train'].shape[4]
-    custom_training_config, custom_model_config = generate_configs(pre_seq_length, aft_seq_length,
+    image_height, image_width = next(iter(dataloader_train))[0].shape[-2:]
+    custom_training_config, custom_model_config = generate_configs(args.pre_seq_length, args.aft_seq_length,
                                                                    image_height, image_width, args)
 
     config = args.__dict__

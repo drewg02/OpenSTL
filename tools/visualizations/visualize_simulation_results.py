@@ -1,7 +1,7 @@
 import argparse
 import time
 from openstl.simulation.simulations import simulations
-from openstl.simulation.visualization import save_result_visualizations
+from openstl.simulation.visualization import load_results, save_result_images
 
 def main():
     # Parse command line arguments
@@ -10,7 +10,8 @@ def main():
                         choices=[simulation.__name__ for simulation in simulations],
                         help="Select the type of simulation to use.")
     parser.add_argument('--res_dir', type=str, default='work_dirs', help="Directory to save results.")
-    parser.add_argument("ex_names", nargs='+', type=str, help="Experiment names")
+    parser.add_argument('--output_dir', type=str, help="Directory to save visualizations.")
+    parser.add_argument("--ex_name", type=str, help="Experiment name")
 
     args = parser.parse_args()
 
@@ -19,15 +20,15 @@ def main():
     if simulation_class is None:
         raise ValueError(f'Invalid simulation class {args.simulation}')
 
-    # Visualize the results for each experiment
-    for ex_name in args.ex_names:
-        print(f'Starting visualization of experiment {ex_name}')
-        start_time = time.time()
+    # Visualize the results
+    print(f'Starting visualization of experiment {args.ex_name}')
+    start_time = time.time()
 
-        save_result_visualizations(args.res_dir, ex_name, simulation_class)
+    inputs, trues, preds = load_results(args.ex_name, args.res_dir)
+    save_result_images(inputs, trues, preds, simulation_class, args.output_dir)
 
-        elapsed_time = time.time() - start_time
-        print(f'Finished visualization of experiment {ex_name}, took {elapsed_time:.2f} seconds')
+    elapsed_time = time.time() - start_time
+    print(f'Finished visualization of experiment {args.ex_name}, took {elapsed_time:.2f} seconds')
 
 if __name__ == "__main__":
     main()
