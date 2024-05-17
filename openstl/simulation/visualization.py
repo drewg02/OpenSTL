@@ -6,8 +6,7 @@ import cv2
 from skimage.metrics import structural_similarity as ssim, mean_squared_error
 import imageio
 
-def load_results(ex_name, res_dir='work_dirs'):
-    save_folder = f'./{res_dir}/{ex_name}/saved'
+def load_results(save_folder):
     inputs = np.load(f'{save_folder}/inputs.npy')
     trues = np.load(f'{save_folder}/trues.npy')
     preds = np.load(f'{save_folder}/preds.npy')
@@ -157,7 +156,7 @@ def show_video_line_metrics(metrics, trues, preds, ncols, vmax=1.0, vmin=0, cmap
 def show_video_line_ssim(inputs, trues, preds, diff, ncols, vmax=1.0, vmin=0, cmap='gray', diff_cmap='gray', norm=None, cbar=False,
                             format='png', out_path=None):
     nrows = 4
-    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(3.25 * ncols, 6.5))
+    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(3.25 * ncols, 3.25 * nrows))
     plt.subplots_adjust(wspace=0.1, hspace=0.1)
 
     if len(inputs.shape) > 3:
@@ -169,10 +168,9 @@ def show_video_line_ssim(inputs, trues, preds, diff, ncols, vmax=1.0, vmin=0, cm
     if len(diff.shape) > 3:
         diff = diff.swapaxes(1, 2).swapaxes(2, 3)
 
-    images = []
     for t in range(ncols):
         ax_inputs = axes[0, t]
-        inputs_img = trues[t]
+        inputs_img = inputs[t]
         im_inputs = ax_inputs.imshow(inputs_img, cmap=cmap, norm=norm)
         ax_inputs.axis('off')
         im_inputs.set_clim(vmin, vmax)
@@ -190,13 +188,10 @@ def show_video_line_ssim(inputs, trues, preds, diff, ncols, vmax=1.0, vmin=0, cm
         im_pred.set_clim(vmin, vmax)
 
         ax_diff = axes[3, t]
-        diff_img = preds[t]
+        diff_img = diff[t]
         im_diff = ax_diff.imshow(diff_img, cmap=diff_cmap, norm=norm)
         ax_diff.axis('off')
         im_diff.set_clim(vmin, vmax)
-
-        images.append(im_true)
-        images.append(im_pred)
 
         true = trues[t].squeeze()
         pred = preds[t].squeeze()
@@ -207,17 +202,91 @@ def show_video_line_ssim(inputs, trues, preds, diff, ncols, vmax=1.0, vmin=0, cm
             ax_inputs.text(x=0, y=0.5, s='Inputs', rotation=90, size=20, va='center', ha='right', transform=ax_inputs.transAxes)
             ax_true.text(x=0, y=0.5, s='Ground truth', rotation=90, size=20, va='center', ha='right', transform=ax_true.transAxes)
             ax_pred.text(x=0, y=0.5, s='Predicted', rotation=90, size=20, va='center', ha='right', transform=ax_pred.transAxes)
-            ax_diff.text(x=0, y=0.5, s='Difference', rotation=90, size=24, va='center', ha='right', transform=ax_diff.transAxes)
+            ax_diff.text(x=0, y=0.5, s='Difference', rotation=90, size=20, va='center', ha='right', transform=ax_diff.transAxes)
 
-        ax_pred.text(0.5, -0.2, f"SSIM: {ssim_value:.5f}", size=24, ha="center",
-                     transform=ax_pred.transAxes)
+        ax_diff.text(0.5, -0.2, f"SSIM: {ssim_value:.5f}", size=20, ha="center",
+                     transform=ax_diff.transAxes)
 
     if cbar and ncols > 1:
         cbaxes = fig.add_axes([0.9, 0.15, 0.04 / ncols, 0.7 * nrows])
-        cbar = fig.colorbar(im_pred, ax=axes.ravel().tolist(), shrink=0.1, cax=cbaxes)
+        cbar = fig.colorbar(im_diff, ax=axes.ravel().tolist(), shrink=0.1, cax=cbaxes)
 
     if out_path is not None:
         fig.savefig(out_path, format=format, pad_inches=0, bbox_inches='tight')
+    plt.close()
+
+
+def show_video_line_ssim_comparison(inputs, trues, preds1, preds2, preds3, ncols, vmax=1.0, vmin=0, cmap='gray', diff_cmap='gray', norm=None,
+                            format='png', out_path=None):
+    nrows = 5
+    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(5 * ncols, 5.3 * nrows))
+    plt.subplots_adjust(wspace=0.1, hspace=0.1)
+
+    if len(inputs.shape) > 3:
+        inputs = inputs.swapaxes(1, 2).swapaxes(2, 3)
+    if len(trues.shape) > 3:
+        trues = trues.swapaxes(1, 2).swapaxes(2, 3)
+    if len(preds1.shape) > 3:
+        preds1 = preds1.swapaxes(1, 2).swapaxes(2, 3)
+    if len(preds2.shape) > 3:
+        preds2 = preds2.swapaxes(1, 2).swapaxes(2, 3)
+    if len(preds3.shape) > 3:
+        preds3 = preds3.swapaxes(1, 2).swapaxes(2, 3)
+
+    for t in range(ncols):
+        ax_inputs = axes[0, t]
+        inputs_img = inputs[t]
+        im_inputs = ax_inputs.imshow(inputs_img, cmap=cmap, norm=norm)
+        ax_inputs.axis('off')
+        im_inputs.set_clim(vmin, vmax)
+
+        ax_pred1 = axes[1, t]
+        pred_img1 = preds1[t]
+        im_pred1 = ax_pred1.imshow(pred_img1, cmap=cmap, norm=norm)
+        ax_pred1.axis('off')
+        im_pred1.set_clim(vmin, vmax)
+
+        ax_pred2 = axes[2, t]
+        pred_img2 = preds2[t]
+        im_pred2 = ax_pred2.imshow(pred_img2, cmap=cmap, norm=norm)
+        ax_pred2.axis('off')
+        im_pred2.set_clim(vmin, vmax)
+
+        ax_pred3 = axes[3, t]
+        pred_img3 = preds3[t]
+        im_pred3 = ax_pred3.imshow(pred_img3, cmap=cmap, norm=norm)
+        ax_pred3.axis('off')
+        im_pred3.set_clim(vmin, vmax)
+
+        ax_true = axes[4, t]
+        true_img = trues[t]
+        im_true = ax_true.imshow(true_img, cmap=cmap, norm=norm)
+        ax_true.axis('off')
+        im_true.set_clim(vmin, vmax)
+
+        true = trues[t].squeeze()
+        pred1 = preds1[t].squeeze()
+        pred2 = preds2[t].squeeze()
+        pred3 = preds3[t].squeeze()
+
+        ssim_value1 = ssim(true, pred1)
+        ssim_value2 = ssim(true, pred2)
+        ssim_value3 = ssim(true, pred3)
+
+        if t == 0:
+            ax_inputs.text(x=-0.01, y=0.5, s='Inputs', rotation=90, size=32, va='center', ha='right', transform=ax_inputs.transAxes)
+            ax_pred1.text(x=-0.01, y=0.5, s='50s 50e', rotation=90, size=32, va='center', ha='right', transform=ax_pred1.transAxes)
+            ax_pred2.text(x=-0.01, y=0.5, s='250s 250e', rotation=90, size=32, va='center', ha='right', transform=ax_pred2.transAxes)
+            ax_pred3.text(x=-0.01, y=0.5, s='5000s 1000e', rotation=90, size=32, va='center', ha='right', transform=ax_pred3.transAxes)
+            ax_true.text(x=-0.01, y=0.5, s='Ground truth', rotation=90, size=32, va='center', ha='right', transform=ax_true.transAxes)
+
+        ax_pred1.text(0.5, -0.1, f"SSIM: {ssim_value1:.5f}", size=24, ha="center", transform=ax_pred1.transAxes)
+        ax_pred2.text(0.5, -0.1, f"SSIM: {ssim_value2:.5f}", size=24, ha="center", transform=ax_pred2.transAxes)
+        ax_pred3.text(0.5, -0.1, f"SSIM: {ssim_value3:.5f}", size=24, ha="center", transform=ax_pred3.transAxes)
+
+    if out_path is not None:
+        fig.savefig(out_path + ".png", format="png", pad_inches=0, bbox_inches='tight')
+        fig.savefig(out_path + ".pdf", format="pdf", pad_inches=0, bbox_inches='tight')
     plt.close()
 
 
@@ -287,9 +356,7 @@ def save_metrics_statistics(metrics, output_path):
         plt.savefig(plot_output_path)
         plt.close()
 
-def save_result_visualizations(res_dir, ex_name, simulation, normalized=True, result_suffix=""):
-    save_folder = f'./{res_dir}/{ex_name}/saved'
-
+def save_result_visualizations(save_folder, simulation, normalized=True, result_suffix=""):
     inputs = np.load(f'{save_folder}/inputs{result_suffix}.npy')
     trues = np.load(f'{save_folder}/trues{result_suffix}.npy')
     preds = np.load(f'{save_folder}/preds{result_suffix}.npy')
@@ -328,7 +395,7 @@ def save_result_visualizations(res_dir, ex_name, simulation, normalized=True, re
                                 format='png',
                                 cmap=simulation.cmap,
                                 out_path=f'{save_folder}/{prefix}_metrics_{idx}.png')
-        show_video_line_ssim(inputs[idx], trues[idx], preds[idx], preds[idx] - trues[idx], ncols=aft_seq_length, vmax=vmax, vmin=0, cbar=False,
+        show_video_line_ssim(inputs[idx], trues[idx], preds[idx], diff, ncols=aft_seq_length, vmax=vmax, vmin=0, cbar=False,
                                 format='png',
                                 cmap=simulation.cmap,
                                 diff_cmap=simulation.diff_cmap,
@@ -352,6 +419,25 @@ def save_result_visualizations(res_dir, ex_name, simulation, normalized=True, re
     # Plot combined train and validation loss
     if train_loss is not None and vali_loss is not None:
         plot_combined_loss(train_loss, vali_loss, save_folder)
+
+def save_result_visualizations_comparison(save_folder1, save_folder2, save_folder3, simulation, normalized=True, result_suffix=""):
+    inputs = np.load(f'{save_folder1}/inputs{result_suffix}.npy')
+    trues = np.load(f'{save_folder1}/trues{result_suffix}.npy')
+    preds1 = np.load(f'{save_folder1}/preds{result_suffix}.npy')
+    preds2 = np.load(f'{save_folder2}/preds{result_suffix}.npy')
+    preds3 = np.load(f'{save_folder3}/preds{result_suffix}.npy')
+
+    vmax = (1 if normalized else simulation.vmax)
+    prefix = simulation.__name__.lower()
+
+    pre_seq_length, aft_seq_length = inputs.shape[1], trues.shape[1]
+
+    for idx in range(0, min(trues.shape[0], 5)):
+        show_video_line_ssim_comparison(inputs[idx], trues[idx], preds1[idx], preds2[idx], preds3[idx], ncols=aft_seq_length, vmax=vmax, vmin=0,
+                                cmap=simulation.cmap,
+                                diff_cmap=simulation.diff_cmap,
+                                format='png',
+                                out_path=f'./work_dirs/{prefix}_ssim_comparison_{idx}')
 
 
 def save_dataset_visualization(dataset, simulation_class, start_index=0, end_index=1, start_frame_index=0, end_frame_index=None, single=False, save_path="", normalized=True):

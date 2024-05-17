@@ -1,5 +1,8 @@
-import argparse
 import time
+import os
+
+import argparse
+
 from openstl.simulation.simulations import simulations
 from openstl.simulation.visualization import load_results, save_result_images
 
@@ -24,7 +27,12 @@ def main():
     print(f'Starting visualization of experiment {args.ex_name}')
     start_time = time.time()
 
-    inputs, trues, preds = load_results(args.ex_name, args.res_dir)
+    input_dir = os.path.join(args.res_dir, args.ex_name, 'saved')
+
+    if args.output_dir is None:
+        args.output_dir = os.path.join(args.res_dir, args.ex_name, 'visualizations')
+
+    inputs, trues, preds = load_results(input_dir)
     save_result_images(inputs, trues, preds, simulation_class, args.output_dir)
 
     elapsed_time = time.time() - start_time

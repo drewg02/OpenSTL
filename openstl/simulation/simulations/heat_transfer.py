@@ -1,8 +1,10 @@
-from .simulation import Simulation
 import numpy as np
 
+from .. import ArrayType
+from .simulation import Simulation
+
 class HeatTransfer(Simulation):
-    vmin, vmax, cmap, diff_cmap = 0.0, 1.0, 'coolwarm', 'Greens'
+    vmin, vmax, cmap, diff_cmap, array_type = 0.0, 1.0, 'coolwarm', 'Greens', ArrayType.RANDOM
     
     def __init__(self, args=None):
         super().__init__(args)

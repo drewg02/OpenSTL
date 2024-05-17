@@ -17,28 +17,38 @@ def normalize_data_min_max(dataset, vmin, vmax):
 
     return (dataset - vmin) / (vmax - vmin)
 
-def train_val_test_split_files(data_folder, train_ratio, val_ratio, num_samples=None):
-    file_paths = [os.path.join(data_folder, f) for f in os.listdir(data_folder) if f.endswith('.npy')]
+def train_val_test_split_files(data, train_ratio, val_ratio, num_samples=None):
+    train_ratio = round(train_ratio, 3)
+    val_ratio = round(val_ratio, 3)
 
     if num_samples is not None:
-        file_paths = np.random.choice(file_paths, min(num_samples, len(file_paths)), replace=False).tolist()
+        data = np.random.choice(data, min(num_samples, len(data)), replace=False).tolist()
 
-    np.random.shuffle(file_paths)
+    np.random.shuffle(data)
 
-    train_size = int(len(file_paths) * train_ratio)
-    val_size = int(len(file_paths) * val_ratio)
+    train_size = round(len(data) * train_ratio)
+    val_size = round(len(data) * val_ratio)
 
-    train_files = file_paths[:train_size] if train_ratio > 0 else []
-    val_files = file_paths[train_size:train_size + val_size] if val_ratio > 0 else []
-    test_files = file_paths[train_size + val_size:] if train_ratio + val_ratio < 1 else []
+    train_data = data[:train_size] if train_ratio > 0 else []
+    val_data = data[train_size:train_size + val_size] if val_ratio > 0 else []
+    test_data = data[train_size + val_size:] if train_ratio + val_ratio < 1 else []
 
     splits = {}
-    if train_files:
-        splits['train'] = train_files
-    if val_files:
-        splits['val'] = val_files
-    if test_files:
-        splits['test'] = test_files
+    if train_data:
+        splits['train'] = {
+            'ratio': train_ratio,
+            'samples': train_data
+        }
+    if val_data:
+        splits['validation'] = {
+            'ratio': val_ratio,
+            'samples': val_data
+        }
+    if test_data:
+        splits['test'] = {
+            'ratio': round(1 - train_ratio - val_ratio, 3),
+            'samples': test_data
+        }
 
     return splits
 
@@ -73,3 +83,38 @@ def split_sample(sample, num_random_samples, total_length):
             new_samples[i * num_random_samples + j] = sample[i, start:start + total_length, ...]
 
     return new_samples
+
+
+def normalize_samples(datafolder, vmin, vmax):
+    for root, dirs, files in os.walk(datafolder):
+        for file in files:
+            if file.endswith(".npy"):
+                data = np.load(os.path.join(root, file))
+                data = normalize_data_min_max(data, vmin, vmax)
+                np.save(os.path.join(root, file), data)
+
+
+def load_files(datafolder, num_samples, sample_start_index, total_length):
+    folders = [f for f in os.listdir(datafolder) if os.path.isdir(os.path.join(datafolder, f))]
+    folders = np.random.choice(folders, min(num_samples, len(folders)), replace=False)
+
+    data = []
+    for i, unique_id in enumerate(folders):
+        files = [f for f in os.listdir(os.path.join(datafolder, unique_id)) if f.endswith('.npy')]
+        file_count = len(files)
+
+        if total_length > 0 and file_count < total_length:
+            print(f"Skipping {unique_id} due to insufficient data.")
+            continue
+
+        start_index = sample_start_index
+        if start_index == -1:
+            start_index = np.random.randint(0, file_count - total_length)
+
+        final_files = []
+        for j in range(start_index, start_index + total_length):
+           final_files.append(os.path.join(datafolder, unique_id, f"{unique_id}_{j}.npy"))
+
+        data.append(final_files)
+
+    return data

@@ -4,19 +4,21 @@ from torch.utils.data import Dataset
 
 
 class SimulationDataset(Dataset):
-    def __init__(self, file_paths, pre_seq_length, aft_seq_length):
-        self.file_paths = file_paths
+    def __init__(self, data, pre_seq_length, aft_seq_length):
+        self.data = data
         self.pre_seq_length = pre_seq_length
         self.aft_seq_length = aft_seq_length
         self.mean = None
         self.std = None
 
     def __len__(self):
-        return len(self.file_paths)
+        return len(self.data['samples'])
 
     def __getitem__(self, idx):
-        file_path = self.file_paths[idx]
-        data = np.load(file_path)
+        sample = self.data['samples'][idx]
+
+        data = [np.load(file) for file in sample]
+        data = np.stack(data)
 
         x_sequence = data[:self.pre_seq_length]
         y_sequence = data[self.pre_seq_length:self.pre_seq_length + self.aft_seq_length]
@@ -24,7 +26,6 @@ class SimulationDataset(Dataset):
         x_sequence = torch.tensor(x_sequence).float()
         y_sequence = torch.tensor(y_sequence).float()
 
-        # data is currently [10, 64, 64] (10 time steps, 64x64 image) but we need to add a channel dimension
         x_sequence = x_sequence.unsqueeze(1)
         y_sequence = y_sequence.unsqueeze(1)
 

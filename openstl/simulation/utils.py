@@ -129,30 +129,23 @@ def create_parser():
 
     # Simulation parameters
     parser.add_argument('--train', action='store_true', default=False, help='Perform training')
-    parser.add_argument('--datafolder_in', type=str, required=True,
-                        help='Specifies the input data file path.')
 
     return parser
 
-def create_data_loader(datafolder_in, file_name, pre_seq_length=10, aft_seq_length=10, batch_size=16, shuffle=False):
-    file_path = os.path.join(datafolder_in, file_name)
-
-    if not os.path.exists(file_path):
-        return None
-
-    with open(file_path, 'r') as f:
-        file_paths = json.load(f)
-
-    if not file_paths:
-        return None
-
-    dataset = SimulationDataset(file_paths, pre_seq_length, aft_seq_length)
+def create_dataloader(data, pre_seq_length=10, aft_seq_length=10, batch_size=16, shuffle=False):
+    dataset = SimulationDataset(data, pre_seq_length, aft_seq_length)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
-def load_data_loaders(datafolder_in, pre_seq_length=10, aft_seq_length=10, batch_size=16, val_batch_size=16, test_batch_size=16):
-    train_loader = create_data_loader(datafolder_in, 'train_files.json', pre_seq_length, aft_seq_length, batch_size, True)
-    val_loader = create_data_loader(datafolder_in, 'val_files.json', pre_seq_length, aft_seq_length, val_batch_size, True)
-    test_loader = create_data_loader(datafolder_in, 'test_files.json', pre_seq_length, aft_seq_length, test_batch_size, True)
+def create_dataloaders(file_path, pre_seq_length=10, aft_seq_length=10, batch_size=16, val_batch_size=16, test_batch_size=16):
+    if not os.path.exists(file_path):
+        return None, None, None
+
+    with open(file_path, 'r') as f:
+        loader = json.load(f)
+
+    train_loader = create_dataloader(loader['train'], pre_seq_length, aft_seq_length, batch_size, True)
+    val_loader = create_dataloader(loader['validation'], pre_seq_length, aft_seq_length, val_batch_size, True)
+    test_loader = create_dataloader(loader['test'], pre_seq_length, aft_seq_length, test_batch_size, True)
 
     return train_loader, val_loader, test_loader
 

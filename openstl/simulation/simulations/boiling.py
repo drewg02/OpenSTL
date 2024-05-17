@@ -1,12 +1,14 @@
-from .simulation import Simulation
 import numpy as np
+
+from .. import ArrayType
+from .simulation import Simulation
 
 default_args = {
     'increment': 5
 }
 
 class Boiling(Simulation):
-    vmin, vmax, cmap, diff_cmap = 0.0, 212.0, 'Purples', 'Oranges'
+    vmin, vmax, cmap, diff_cmap, array_type = 0.0, 212.0, 'Purples', 'Oranges', ArrayType.RANDOM_UNIFORM
 
     def __init__(self, args=None):
         super().__init__()

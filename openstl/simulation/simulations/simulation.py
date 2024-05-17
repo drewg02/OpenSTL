@@ -1,5 +1,5 @@
 class Simulation:
-    vmin, vmax, cmap, diff_cmap = None, None, None, None
+    vmin, vmax, cmap, diff_cmap, array_type = None, None, None, None, None
 
     def __init__(self, args=None):
         self.args = args

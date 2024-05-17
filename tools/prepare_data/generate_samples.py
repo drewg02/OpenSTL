@@ -1,31 +1,33 @@
-import os
 import time
+import os
+import json
 
-from openstl.utils import create_parser
+from argparse import ArgumentParser as ArgParser
 
 from openstl.simulation.simulations import simulations
 from openstl.simulation.generation import create_samples
-from openstl.simulation.utils import get_simulation_class, get_seq_lengths
+from openstl.simulation.utils import get_simulation_class
+from openstl.simulation.preparation import normalize_samples
 
 
 # Create a parser with additional arguments specific to dataset generation.
 def create_local_parser():
-    parser = create_parser()
+    parser = ArgParser()
+
     parser.description = "Generate a dataset for a simulation."
 
     parser.add_argument('--simulation', type=str, choices=[simulation.__name__ for simulation in simulations],
                         help='Determines the simulation type.', required=True)
 
-    parser.add_argument('--num_samples', type=int,
-                        help='Specifies the number of samples.', required=True)
-
     parser.add_argument('--increment', type=int, default=5,
                         help="Only applies to Boiling simulation, sets the increment value.")
+    parser.add_argument('--total_sample_length', type=int, help='Number of total iterations in the sequence including the initial state.', required=True)
 
-    parser.add_argument('--datafolder_in', type=str, required=True,
+    parser.add_argument('--normalize', action='store_true',
+                        help='Determines whether to normalize the data.')
+
+    parser.add_argument('--datafolder', type=str, required=True,
                         help='Specifies the data folder in path.')
-    parser.add_argument('--datafolder_out', type=str, required=True,
-                        help='Specifies the data folder out path.')
 
     return parser
 
@@ -40,18 +42,28 @@ def main():
 
     simulation = simulation_class(args)  # Initialize the simulation class.
 
-    # Get sequence lengths for the simulation.
-    pre_seq_length, aft_seq_length, total_length = get_seq_lengths(args)
-    if total_length is None:
-        raise ValueError("Must specify --total_length or --pre_seq_length and --aft_seq_length")
+    if not os.path.exists(args.datafolder):
+        raise FileNotFoundError(f"Data folder in path {args.datafolder} does not exist.")
 
     start_time = time.time()  # Record the start time.
     # Generate samples based on the provided parameters.
-    create_samples(args.num_samples, total_length, simulation, args.datafolder_in, args.datafolder_out, verbose=True)
+    create_samples(args.total_sample_length, simulation, args.datafolder, verbose=True)
+    if args.normalize:
+        normalize_samples(args.datafolder, simulation.vmin, simulation.vmax)  # Normalize the samples.
 
     elapsed = time.time() - start_time  # Calculate the elapsed time.
-    print(f"Generating {args.num_samples} samples took {elapsed} seconds.")  # Print the time taken to generate samples.
+    print(f"Generating samples took {elapsed} seconds.")  # Print the time taken to generate samples.
 
+    saveout = {
+        'simulation': args.simulation,
+        'increment': args.increment,
+        'total_sample_length': args.total_sample_length,
+        'normalize': args.normalize,
+        'datafolder': args.datafolder
+    }
+
+    with open(os.path.join(args.datafolder, 'samples.json'), 'w') as f:
+        json.dump(saveout, f, indent=4)
 
 if __name__ == '__main__':
     main()
