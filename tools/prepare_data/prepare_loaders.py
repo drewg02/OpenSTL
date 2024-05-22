@@ -1,7 +1,7 @@
 import os
 
 from argparse import ArgumentParser as ArgParser
-from experiment_recorder import generate_experiment_record, save_experiment_record
+from openstl.simulation.experiment_recorder import generate_experiment_record, save_experiment_record
 
 from openstl.simulation.preparation import load_files, train_val_test_split_files
 

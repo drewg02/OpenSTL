@@ -2,7 +2,7 @@ import os
 import time
 
 from argparse import ArgumentParser as ArgParser
-from experiment_recorder import generate_experiment_record, save_experiment_record
+from openstl.simulation.experiment_recorder import generate_experiment_record, save_experiment_record
 
 from openstl.simulation.simulations import simulations
 from openstl.simulation.generation import ArrayType, create_initials

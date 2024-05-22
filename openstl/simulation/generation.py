@@ -2,7 +2,7 @@ import os
 import time
 import numpy as np
 from .array_type import ArrayType
-from experiment_recorder import generate_unique_id
+from openstl.simulation.experiment_recorder import generate_unique_id
 
 
 def update_array(array, mask, array_type, vmin=0.0, vmax=1.0, thickness=1, chance=0.2, static_cells_random=False,
