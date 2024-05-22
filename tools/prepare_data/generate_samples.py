@@ -3,6 +3,7 @@ import os
 import json
 
 from argparse import ArgumentParser as ArgParser
+from experiment_recorder import generate_experiment_record, save_experiment_record
 
 from openstl.simulation.simulations import simulations
 from openstl.simulation.generation import create_samples
@@ -52,18 +53,18 @@ def main():
         normalize_samples(args.datafolder, simulation.vmin, simulation.vmax)  # Normalize the samples.
 
     elapsed = time.time() - start_time  # Calculate the elapsed time.
-    print(f"Generating samples took {elapsed} seconds.")  # Print the time taken to generate samples.
 
-    saveout = {
+    samples_arguments = {
         'simulation': args.simulation,
         'increment': args.increment,
         'total_sample_length': args.total_sample_length,
-        'normalize': args.normalize,
-        'datafolder': args.datafolder
+        'normalize': args.normalize
     }
 
-    with open(os.path.join(args.datafolder, 'samples.json'), 'w') as f:
-        json.dump(saveout, f, indent=4)
+    record = generate_experiment_record(**samples_arguments)
+    save_experiment_record(record, os.path.join(args.datafolder, f"{record['id']}_samples.json"))
+
+    print(f"Generating samples took {elapsed} seconds.")  # Print the time taken to generate samples.
 
 if __name__ == '__main__':
     main()

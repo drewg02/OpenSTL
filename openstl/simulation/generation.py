@@ -1,6 +1,8 @@
+import os
 import time
 import numpy as np
 from .array_type import ArrayType
+from experiment_recorder import generate_unique_id
 
 
 def update_array(array, mask, array_type, vmin=0.0, vmax=1.0, thickness=1, chance=0.2, static_cells_random=False,
@@ -89,16 +91,6 @@ def create_array(rows, cols, array_type, vmin=0.0, vmax=1.0, thickness=1, chance
                              dynamic_cells_random)
     return arr, mask
 
-import os
-import hashlib
-import json
-
-def generate_unique_id(a):
-    """Generate a SHA-256 hash as a unique ID for the experiment record."""
-    #serialized_record = json.dumps(experiment_record, sort_keys=True)
-    hash_object = hashlib.sha256(a)
-    return hash_object.hexdigest()
-
 def create_initials(rows, cols, num_initials, simulation_class, array_type, datafolder_out, thickness=1, chance=0.2,
                    static_cells_random=False, dynamic_cells_random=False, verbose=True):
     """
@@ -126,7 +118,7 @@ def create_initials(rows, cols, num_initials, simulation_class, array_type, data
         arr, mask = create_array(rows, cols, array_type, simulation_class.vmin, simulation_class.vmax, thickness, chance,
                                  static_cells_random, dynamic_cells_random)
 
-        unique_id = generate_unique_id(arr)
+        unique_id = generate_unique_id(arr.tolist())
         foldername = f'{datafolder_out}/{unique_id}_{i}'
         if not os.path.exists(foldername):
             os.makedirs(foldername)

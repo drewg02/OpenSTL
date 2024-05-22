@@ -1,8 +1,8 @@
 import os
 import time
-import json
 
 from argparse import ArgumentParser as ArgParser
+from experiment_recorder import generate_experiment_record, save_experiment_record
 
 from openstl.simulation.simulations import simulations
 from openstl.simulation.generation import ArrayType, create_initials
@@ -64,24 +64,25 @@ def main():
                              args.array_type, args.datafolder, args.thickness, args.chance, args.static_cells_random,
                              args.dynamic_cells_random, verbose=True)
 
-
-
     elapsed = time.time() - start_time  # Calculate the elapsed time.
-    print(f"Generating {args.num_initials} initials took {elapsed} seconds.")  # Print the time taken to generate initials.
 
-    saveout = {
+    initials_arguments = {
         'simulation': args.simulation,
         'num_initials': args.num_initials,
         'image_height': args.image_height,
         'image_width': args.image_width,
         'array_type': args.array_type,
         'chance': args.chance,
-        'increment': args.increment,
-        'datafolder': args.datafolder
+        'thickness': args.chance,
+        'static_cells_random': args.chance,
+        'dynamic_cells_random': args.chance,
+        'increment': args.increment
     }
 
-    with open(os.path.join(args.datafolder, 'initials.json'), 'w') as f:
-        json.dump(saveout, f, indent=4)
+    record = generate_experiment_record(**initials_arguments)
+    save_experiment_record(record, os.path.join(args.datafolder, f"{record['id']}_initials.json"))
+
+    print(f"Generating {args.num_initials} initials took {elapsed} seconds.")  # Print the time taken to generate initials.
 
 
 if __name__ == '__main__':

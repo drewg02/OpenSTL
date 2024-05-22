@@ -1,7 +1,7 @@
 import os
-import json
 
 from argparse import ArgumentParser as ArgParser
+from experiment_recorder import generate_experiment_record, save_experiment_record
 
 from openstl.simulation.preparation import load_files, train_val_test_split_files
 
@@ -30,9 +30,9 @@ def main():
     if not os.path.exists(args.datafolder):
         raise FileNotFoundError(f"Data folder in path {args.datafolder} does not exist.")
 
-    # Save each split into its own file
-    with open(os.path.join(args.datafolder, f"loader.json"), 'w') as f:
-        json.dump(train_val_test_splits, f, indent=4)
+    # Save the loaders into json
+    record = generate_experiment_record(**train_val_test_splits)
+    save_experiment_record(record, os.path.join(args.datafolder, f"{record['id']}_loaders.json"))
 
     print(f"File splits saved to {args.datafolder}")
 
