@@ -34,22 +34,23 @@ class SimulationExperiment(BaseExperiment):
 
     def _acquire_device(self):
         """Setup devices"""
-        if self.args.use_gpu:
-            self._use_gpu = True
+        self._use_gpu = self.args.use_gpu and torch.cuda.is_available()
+
+        if self.args.dist and not self._use_gpu:
+            assert False, "Distributed training requires GPUs"
+
+        if self._use_gpu:
+            device = f'cuda:{self._rank if self.args.dist else 0}'
             if self.args.dist:
-                device = f'cuda:{self._rank}'
                 torch.cuda.set_device(self._rank)
                 print_log(f'Use distributed mode with GPUs: local rank={self._rank}')
             else:
-                device = torch.device('cuda:0')
                 print_log(f'Use non-distributed mode with GPU: {device}')
         else:
-            self._use_gpu = False
-            device = torch.device('cpu')
-            print_log('Use CPU')
-            if self.args.dist:
-                assert False, "Distributed training requires GPUs"
-        return device
+            device = 'cpu'
+            print_log('No GPU available, defaulting to CPU' if self.args.use_gpu else 'Use CPU')
+
+        return torch.device(device)
 
     def _preparation(self, dataloaders=None):
         """Preparation of environment and basic experiment setups"""
