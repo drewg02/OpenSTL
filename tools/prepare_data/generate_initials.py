@@ -37,6 +37,9 @@ def create_local_parser():
     parser.add_argument('--increment', type=int, default=5,
                         help="Only applies to Boiling simulation, sets the increment value.")
 
+    parser.add_argument('--num_threads', type=int, default=1,
+                        help='Specifies the number of threads to use.')
+
     parser.add_argument('--datafolder', type=str, required=True,
                         help='Specifies the data folder path.')
 
@@ -62,7 +65,7 @@ def main():
     # Generate initials based on the provided parameters.
     create_initials(args.image_height, args.image_width, args.num_initials, simulation_class,
                              args.array_type, args.datafolder, args.thickness, args.chance, args.static_cells_random,
-                             args.dynamic_cells_random, verbose=True)
+                             args.dynamic_cells_random, num_threads=args.num_threads)
 
     elapsed = time.time() - start_time  # Calculate the elapsed time.
 
@@ -76,7 +79,8 @@ def main():
         'thickness': args.chance,
         'static_cells_random': args.chance,
         'dynamic_cells_random': args.chance,
-        'increment': args.increment
+        'increment': args.increment,
+        'num_threads': args.num_threads
     }
 
     record = generate_experiment_record(**initials_arguments)
