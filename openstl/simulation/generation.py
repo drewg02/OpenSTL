@@ -93,8 +93,8 @@ def create_array(rows, cols, array_type, vmin=0.0, vmax=1.0, thickness=1, chance
                              dynamic_cells_random)
     return arr, mask
 
-def create_initials_old(rows, cols, num_initials, simulation_class, array_type, datafolder_out, thickness=1, chance=0.2,
-                   static_cells_random=False, dynamic_cells_random=False, num_threads=1, verbose=True):
+def create_initials(rows, cols, num_initials, simulation_class, array_type, datafolder_out, thickness=1, chance=0.2,
+                   static_cells_random=False, dynamic_cells_random=False, verbose=True):
     """
     Generates a series of samples with initial conditions and applies a stencil over iterations.
 
@@ -134,7 +134,7 @@ def create_initials_old(rows, cols, num_initials, simulation_class, array_type, 
             print(f"{progress:.2f}% done, generated {i + 1}/{num_initials} initials, {elapsed_time:.2f} seconds elapsed")
 
 
-def create_samples_old(total_frames, datafolder, normalize, args, num_threads=1, verbose=True):
+def create_samples(total_frames, datafolder, normalize, args, verbose=True):
     """
     Generates a series of samples with initial conditions and applies a stencil over iterations.
 
@@ -183,143 +183,3 @@ def create_samples_old(total_frames, datafolder, normalize, args, num_threads=1,
             last_progress = progress
             elapsed_time = time.time() - start_time
             print(f"{progress:.2f}% done, generated {i + 1}/{num_samples} samples, {elapsed_time:.2f} seconds elapsed")
-
-
-from tqdm import tqdm
-from multiprocessing import Pool, cpu_count, Value, Lock, Manager
-
-
-def process_initial(i, rows, cols, array_type, simulation_class, datafolder_out, thickness, chance,
-                    static_cells_random, dynamic_cells_random, progress_counter, lock):
-    arr, mask = create_array(rows, cols, array_type, simulation_class.vmin, simulation_class.vmax, thickness, chance,
-                             static_cells_random, dynamic_cells_random)
-
-    unique_id = generate_unique_id(arr.tolist())
-    name = f'{unique_id}_{simulation_class.__name__.lower()}_{i}'
-    folder = f'{datafolder_out}/{name}'
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-    np.save(f'{folder}/0.npy', arr)
-
-    with lock:
-        progress_counter.value += 1
-
-
-def create_initials(rows, cols, num_initials, simulation_class, array_type, datafolder_out, thickness=1, chance=0.2,
-                    static_cells_random=False, dynamic_cells_random=False, num_threads=1, verbose=True):
-    """
-    Generates a series of samples with initial conditions and applies a stencil over iterations.
-
-    Arguments:
-    - rows: Number of rows in the array.
-    - cols: Number of columns in the array.
-    - num_initials: Number of initials to generate.
-    - simulation_class: The Simulation class used to generate the initials.
-    - array_type: The ArrayType for the initial condition.
-    - save_path: The path to save the initials.
-    - thickness: Thickness for the lines in OUTLINE, CENTER and PLUS array types.
-    - chance: Probability used for RANDOM and RANDOM_UNIFORM array types.
-    - static_cells_random: For RANDOM array type. When True it fills the array with random values instead of the vmax where the mask is 1.
-    - dynamic_cells_random: For RANDOM array type. When True it fills the array with random values instead of the vmin where the mask is 1.
-    - verbose: If True, prints the progress of the generation.
-
-    Returns: None
-    """
-
-    if num_threads < 1:
-        num_threads = cpu_count()
-
-    manager = Manager()
-    progress_counter = manager.Value('i', 0)
-    lock = manager.Lock()
-
-    def init_pool(counter, lck):
-        global progress_counter, lock
-        progress_counter = counter
-        lock = lck
-
-    with Pool(num_threads, initializer=init_pool, initargs=(progress_counter, lock)) as pool:
-        args = [(i, rows, cols, array_type, simulation_class, datafolder_out, thickness, chance,
-                 static_cells_random, dynamic_cells_random) for i in range(num_initials)]
-        with tqdm(total=num_initials, disable=not verbose) as pbar:
-            for _ in pool.imap_unordered(process_initial_wrapper, args):
-                pbar.update()
-
-
-def process_initial_wrapper(args):
-    return process_initial(*args, progress_counter, lock)
-
-
-def process_sample(unique_id, datafolder, normalize, sim_args, sims, total_frames, progress_counter, lock):
-    files = [f for f in os.listdir(f'{datafolder}/{unique_id}') if f.endswith('.npy')]
-    if len(files) != 1:
-        return
-
-    initial = files[0]
-    simulation_name = unique_id.split('_')[1]
-    if simulation_name not in sims:
-        sims[simulation_name] = get_simulation_class(simulation_name)(sim_args)
-
-    sim = sims[simulation_name]
-    try:
-        arr = np.load(f'{datafolder}/{unique_id}/{initial}')
-    except FileNotFoundError:
-        print(f"Initial condition for {unique_id} not found, stopping generation.")
-        return
-
-    _, samples = sim.apply(arr, arr, total_frames - 1, save_history=True)
-    for j, sample in enumerate(samples):
-        if normalize:
-            sample = normalize_data_min_max(sample, sim.vmin, sim.vmax)
-        elif j == 0:
-            continue
-        np.save(f'{datafolder}/{unique_id}/{j}.npy', sample)
-
-    with lock:
-        progress_counter.value += 1
-
-
-def create_samples(total_frames, datafolder, normalize, args, num_threads=1, verbose=True):
-    """
-    Generates a series of samples with initial conditions and applies a stencil over iterations.
-
-    Arguments:
-    - total_frames: Number of frames for each sample.
-    - simulation: The Simulation class used to apply the simulation.
-    - save_path: The path to save the initials.
-    - verbose: If True, prints the progress of the generation.
-
-    Returns: None
-    """
-
-    if num_threads < 1:
-        num_threads = cpu_count()
-
-    manager = Manager()
-    progress_counter = manager.Value('i', 0)
-    lock = manager.Lock()
-
-    def init_pool(counter, lck):
-        global progress_counter, lock
-        progress_counter = counter
-        lock = lck
-
-    start_time = time.time()
-    folders = [f for f in os.listdir(datafolder) if os.path.isdir(os.path.join(datafolder, f))]
-
-    sims = {}
-    num_samples = len(folders)
-
-    with Pool(num_threads, initializer=init_pool, initargs=(progress_counter, lock)) as pool:
-        args_list = [(unique_id, datafolder, normalize, args, sims, total_frames) for unique_id in folders]
-        with tqdm(total=num_samples, disable=not verbose) as pbar:
-            for _ in pool.imap_unordered(process_sample_wrapper, args_list):
-                pbar.update()
-
-    elapsed_time = time.time() - start_time
-    if verbose:
-        print(f"Generation completed in {elapsed_time:.2f} seconds")
-
-
-def process_sample_wrapper(args):
-    return process_sample(*args, progress_counter, lock)

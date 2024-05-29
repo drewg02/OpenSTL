@@ -20,9 +20,6 @@ def create_local_parser():
     parser.add_argument('--normalize', action='store_true',
                         help='Determines whether to normalize the data.')
 
-    parser.add_argument('--num_threads', type=int, default=1,
-                        help='Specifies the number of threads to use.')
-
     parser.add_argument('--datafolder', type=str, required=True,
                         help='Specifies the data folder in path.')
 
@@ -34,15 +31,14 @@ def main():
 
     start_time = time.time()  # Record the start time.
     # Generate samples based on the provided parameters.
-    create_samples(args.total_sample_length, args.datafolder, args.normalize, args, num_threads=args.num_threads)
+    create_samples(args.total_sample_length, args.datafolder, args.normalize, args, verbose=True)
 
     elapsed = time.time() - start_time  # Calculate the elapsed time.
 
     samples_arguments = {
         'increment': args.increment,
         'total_sample_length': args.total_sample_length,
-        'normalize': args.normalize,
-        'num_threads': args.num_threads,
+        'normalize': args.normalize
     }
 
     record = generate_experiment_record(**samples_arguments)
