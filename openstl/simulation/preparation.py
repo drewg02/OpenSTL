@@ -90,8 +90,8 @@ def normalize_samples(datafolder, vmin, vmax):
         for file in files:
             if file.endswith(".npy"):
                 data = np.load(os.path.join(root, file))
-                data = normalize_data_min_max(data, vmin, vmax)
-                np.save(os.path.join(root, file), data)
+                norm_data = normalize_data_min_max(data, vmin, vmax)
+                np.save(os.path.join(root, file), norm_data)
 
 
 def load_files(datafolder, num_samples, sample_start_index, total_length):
@@ -113,7 +113,7 @@ def load_files(datafolder, num_samples, sample_start_index, total_length):
 
         final_files = []
         for j in range(start_index, start_index + total_length):
-           final_files.append(os.path.join(datafolder, unique_id, f"{unique_id}_{j}.npy"))
+           final_files.append(os.path.join(datafolder, unique_id, f"{j}.npy"))
 
         data.append(final_files)
 

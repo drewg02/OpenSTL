@@ -186,7 +186,7 @@ def generate_configs(pre_seq_length, aft_seq_length, image_height, image_width, 
     return custom_training_config, custom_model_config
 
 def get_simulation_class(simulation_name):
-    simulation_class = [simulation for simulation in simulations if simulation.__name__ == simulation_name]
+    simulation_class = [simulation for simulation in simulations if simulation.__name__.lower() == simulation_name.lower()]
     if not simulation_class:
         raise ValueError(f"Invalid simulation: {simulation_name}")
     return simulation_class[0]

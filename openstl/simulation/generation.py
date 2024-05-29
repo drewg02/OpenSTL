@@ -3,7 +3,9 @@ import time
 import numpy as np
 from .array_type import ArrayType
 from openstl.simulation.experiment_recorder import generate_unique_id
-
+from openstl.simulation.preparation import normalize_data_min_max
+from openstl.simulation.simulations import simulations
+from openstl.simulation.utils import get_simulation_class
 
 def update_array(array, mask, array_type, vmin=0.0, vmax=1.0, thickness=1, chance=0.2, static_cells_random=False,
                  dynamic_cells_random=False):
@@ -119,10 +121,11 @@ def create_initials(rows, cols, num_initials, simulation_class, array_type, data
                                  static_cells_random, dynamic_cells_random)
 
         unique_id = generate_unique_id(arr.tolist())
-        foldername = f'{datafolder_out}/{unique_id}_{i}'
-        if not os.path.exists(foldername):
-            os.makedirs(foldername)
-        np.save(f'{foldername}/{unique_id}_{i}_0.npy', arr)
+        name = f'{unique_id}_{simulation_class.__name__.lower()}_{i}'
+        folder = f'{datafolder_out}/{name}'
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        np.save(f'{folder}/0.npy', arr)
 
         progress = ((i + 1) / num_initials) * 100
         if verbose and progress - last_progress >= 1:
@@ -131,7 +134,7 @@ def create_initials(rows, cols, num_initials, simulation_class, array_type, data
             print(f"{progress:.2f}% done, generated {i + 1}/{num_initials} initials, {elapsed_time:.2f} seconds elapsed")
 
 
-def create_samples(total_frames, simulation, datafolder, verbose=True):
+def create_samples(total_frames, datafolder, normalize, args, verbose=True):
     """
     Generates a series of samples with initial conditions and applies a stencil over iterations.
 
@@ -147,25 +150,33 @@ def create_samples(total_frames, simulation, datafolder, verbose=True):
     last_progress = 0
 
     folders = [f for f in os.listdir(datafolder) if os.path.isdir(os.path.join(datafolder, f))]
+
+    sims = {}
     num_samples = len(folders)
     for i, unique_id in enumerate(folders):
-        files = [f for f in os.listdir(f'{datafolder}/{unique_id}') if f.endswith('_0.npy')]
+        files = [f for f in os.listdir(f'{datafolder}/{unique_id}') if f.endswith('.npy')]
         if len(files) != 1:
             continue
 
         initial = files[0]
+        simulation_name = unique_id.split('_')[1]
+        if simulation_name not in sims:
+            sims[simulation_name] = get_simulation_class(simulation_name)(args)
+
+        sim = sims[simulation_name]
         try:
             arr = np.load(f'{datafolder}/{unique_id}/{initial}')
         except FileNotFoundError:
             print(f"Initial condition for {unique_id} not found, stopping generation.")
             return
 
-        _, samples = simulation.apply(arr, arr, total_frames - 1, save_history=True)
+        _, samples = sim.apply(arr, arr, total_frames - 1, save_history=True)
         for j, sample in enumerate(samples):
-            if j == 0:
+            if normalize:
+                sample = normalize_data_min_max(sample, sim.vmin, sim.vmax)
+            elif j == 0:
                 continue
-
-            np.save(f'{datafolder}/{unique_id}/{unique_id}_{j}.npy', sample)
+            np.save(f'{datafolder}/{unique_id}/{j}.npy', sample)
 
         progress = ((i + 1) / num_samples) * 100
         if verbose and progress - last_progress >= 1:
