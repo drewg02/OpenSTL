@@ -1,11 +1,12 @@
 import os
+
 import numpy as np
 from tqdm import tqdm
 
-from .array_type import ArrayType
 from openstl.simulation.experiment_recorder import generate_unique_id
 from openstl.simulation.preparation import normalize_data_min_max
 from openstl.simulation.utils import get_simulation_class
+from .array_type import ArrayType
 
 
 def update_array(array, mask, array_type, vmin=0.0, vmax=1.0, thickness=1, chance=0.2,
@@ -40,7 +41,7 @@ def update_array(array, mask, array_type, vmin=0.0, vmax=1.0, thickness=1, chanc
     elif array_type == ArrayType.CENTER:
         mid_row, mid_col = rows // 2, cols // 2
         center_slice = (
-        slice(mid_row - thickness, mid_row + thickness), slice(mid_col - thickness, mid_col + thickness))
+            slice(mid_row - thickness, mid_row + thickness), slice(mid_col - thickness, mid_col + thickness))
         array[center_slice] = vmax
         mask[center_slice] = 1
 

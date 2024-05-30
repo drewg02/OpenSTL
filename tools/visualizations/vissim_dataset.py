@@ -1,9 +1,9 @@
 import argparse
 import time
 
-from openstl.simulation.visualization import save_dataset_visualization
 from openstl.simulation.simulations import simulations
 from openstl.simulation.utils import load_data, get_simulation_class
+from openstl.simulation.visualization import save_dataset_visualization
 
 
 # Create a parser with additional arguments specific to dataset visualization.

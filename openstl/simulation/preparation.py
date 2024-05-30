@@ -1,4 +1,5 @@
 import os
+
 import numpy as np
 
 
@@ -16,6 +17,7 @@ def normalize_data_min_max(dataset, vmin, vmax):
     """
 
     return (dataset - vmin) / (vmax - vmin)
+
 
 def train_val_test_split_files(data, train_ratio, val_ratio, num_samples=None):
     train_ratio = round(train_ratio, 3)
@@ -52,6 +54,7 @@ def train_val_test_split_files(data, train_ratio, val_ratio, num_samples=None):
 
     return splits
 
+
 def random_samples_split_data(dataset, num_random_samples, total_length):
     """
     Splits each sample in the dataset into multiple samples.
@@ -73,6 +76,7 @@ def random_samples_split_data(dataset, num_random_samples, total_length):
         new_dataset = split_sample(dataset, num_random_samples, total_length)
 
     return new_dataset
+
 
 def split_sample(sample, num_random_samples, total_length):
     new_samples = np.zeros((num_random_samples * sample.shape[0], total_length, *sample.shape[2:]), dtype=sample.dtype)
@@ -113,7 +117,7 @@ def load_files(datafolder, num_samples, sample_start_index, total_length):
 
         final_files = []
         for j in range(start_index, start_index + total_length):
-           final_files.append(os.path.join(datafolder, unique_id, f"{j}.npy"))
+            final_files.append(os.path.join(datafolder, unique_id, f"{j}.npy"))
 
         data.append(final_files)
 

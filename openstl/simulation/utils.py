@@ -1,7 +1,7 @@
 import argparse
-import pickle
-import os
 import json
+import os
+import pickle
 
 from torch.utils.data import DataLoader
 

@@ -1,10 +1,10 @@
-import time
-import os
-
 import argparse
+import os
+import time
 
 from openstl.simulation.simulations import simulations
 from openstl.simulation.visualization import load_results, save_result_images
+
 
 def main():
     # Parse command line arguments
@@ -37,6 +37,7 @@ def main():
 
     elapsed_time = time.time() - start_time
     print(f'Finished visualization of experiment {args.ex_name}, took {elapsed_time:.2f} seconds')
+
 
 if __name__ == "__main__":
     main()

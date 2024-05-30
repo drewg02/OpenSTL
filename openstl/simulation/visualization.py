@@ -1,10 +1,13 @@
-from openstl.utils import show_video_line, show_video_gif_multiple
-import numpy as np
-import matplotlib.pyplot as plt
 import os
+
 import cv2
-from skimage.metrics import structural_similarity as ssim, mean_squared_error
 import imageio
+import matplotlib.pyplot as plt
+import numpy as np
+from skimage.metrics import structural_similarity as ssim, mean_squared_error
+
+from openstl.utils import show_video_line, show_video_gif_multiple
+
 
 def load_results(save_folder):
     inputs = np.load(f'{save_folder}/inputs.npy')
@@ -22,29 +25,33 @@ def save_result_images(inputs, preds, trues, simulation, save_folder):
         # Save each input frame
         for frame_idx, frame in enumerate(input_sample):
             input_path = os.path.join(sample_folder, f'input{frame_idx + 1}.png')
-            show_video_line(frame[np.newaxis, :], ncols=1, vmax=simulation.vmax, cmap=simulation.cmap, out_path=input_path)
+            show_video_line(frame[np.newaxis, :], ncols=1, vmax=simulation.vmax, cmap=simulation.cmap,
+                            out_path=input_path)
 
         # Save each prediction frame
         for frame_idx, frame in enumerate(pred_sample):
             pred_path = os.path.join(sample_folder, f'predicted{frame_idx + 1}.png')
-            show_video_line(frame[np.newaxis, :], ncols=1, vmax=simulation.vmax, cmap=simulation.cmap, out_path=pred_path)
+            show_video_line(frame[np.newaxis, :], ncols=1, vmax=simulation.vmax, cmap=simulation.cmap,
+                            out_path=pred_path)
 
         # Save each ground truth frame
         for frame_idx, frame in enumerate(true_sample):
             true_path = os.path.join(sample_folder, f'ground_truth{frame_idx + 1}.png')
-            show_video_line(frame[np.newaxis, :], ncols=1, vmax=simulation.vmax, cmap=simulation.cmap, out_path=true_path)
+            show_video_line(frame[np.newaxis, :], ncols=1, vmax=simulation.vmax, cmap=simulation.cmap,
+                            out_path=true_path)
 
 
-def show_video_line_tsse(trues, preds, ncols, vmax=0.6, vmin=0.0, cmap='gray', norm=None, cbar=False, format='png', out_path=None, use_rgb=False):
+def show_video_line_tsse(trues, preds, ncols, vmax=0.6, vmin=0.0, cmap='gray', norm=None, cbar=False, format='png',
+                         out_path=None, use_rgb=False):
     """generate images with a video sequence and display TSSE between trues and preds"""
     nrows = 2
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(3.25 * ncols, 6.5))
     plt.subplots_adjust(wspace=0.1, hspace=0.1)
 
     if len(trues.shape) > 3:
-        trues = trues.swapaxes(1,2).swapaxes(2,3)
+        trues = trues.swapaxes(1, 2).swapaxes(2, 3)
     if len(preds.shape) > 3:
-        preds = preds.swapaxes(1,2).swapaxes(2,3)
+        preds = preds.swapaxes(1, 2).swapaxes(2, 3)
 
     images = []
     for t in range(ncols):
@@ -153,8 +160,9 @@ def show_video_line_metrics(metrics, trues, preds, ncols, vmax=1.0, vmin=0, cmap
     plt.close()
 
 
-def show_video_line_ssim(inputs, trues, preds, diff, ncols, vmax=1.0, vmin=0, cmap='gray', diff_cmap='gray', norm=None, cbar=False,
-                            format='png', out_path=None):
+def show_video_line_ssim(inputs, trues, preds, diff, ncols, vmax=1.0, vmin=0, cmap='gray', diff_cmap='gray', norm=None,
+                         cbar=False,
+                         format='png', out_path=None):
     nrows = 4
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(3.25 * ncols, 3.25 * nrows))
     plt.subplots_adjust(wspace=0.1, hspace=0.1)
@@ -199,10 +207,14 @@ def show_video_line_ssim(inputs, trues, preds, diff, ncols, vmax=1.0, vmin=0, cm
         ssim_value = ssim(true, pred)
 
         if t == 0:
-            ax_inputs.text(x=0, y=0.5, s='Inputs', rotation=90, size=20, va='center', ha='right', transform=ax_inputs.transAxes)
-            ax_true.text(x=0, y=0.5, s='Ground truth', rotation=90, size=20, va='center', ha='right', transform=ax_true.transAxes)
-            ax_pred.text(x=0, y=0.5, s='Predicted', rotation=90, size=20, va='center', ha='right', transform=ax_pred.transAxes)
-            ax_diff.text(x=0, y=0.5, s='Difference', rotation=90, size=20, va='center', ha='right', transform=ax_diff.transAxes)
+            ax_inputs.text(x=0, y=0.5, s='Inputs', rotation=90, size=20, va='center', ha='right',
+                           transform=ax_inputs.transAxes)
+            ax_true.text(x=0, y=0.5, s='Ground truth', rotation=90, size=20, va='center', ha='right',
+                         transform=ax_true.transAxes)
+            ax_pred.text(x=0, y=0.5, s='Predicted', rotation=90, size=20, va='center', ha='right',
+                         transform=ax_pred.transAxes)
+            ax_diff.text(x=0, y=0.5, s='Difference', rotation=90, size=20, va='center', ha='right',
+                         transform=ax_diff.transAxes)
 
         ax_diff.text(0.5, -0.2, f"SSIM: {ssim_value:.5f}", size=20, ha="center",
                      transform=ax_diff.transAxes)
@@ -216,8 +228,9 @@ def show_video_line_ssim(inputs, trues, preds, diff, ncols, vmax=1.0, vmin=0, cm
     plt.close()
 
 
-def show_video_line_ssim_comparison(inputs, trues, preds1, preds2, preds3, ncols, vmax=1.0, vmin=0, cmap='gray', diff_cmap='gray', norm=None,
-                            format='png', out_path=None):
+def show_video_line_ssim_comparison(inputs, trues, preds1, preds2, preds3, ncols, vmax=1.0, vmin=0, cmap='gray',
+                                    diff_cmap='gray', norm=None,
+                                    format='png', out_path=None):
     nrows = 5
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(5 * ncols, 5.3 * nrows))
     plt.subplots_adjust(wspace=0.1, hspace=0.1)
@@ -274,11 +287,16 @@ def show_video_line_ssim_comparison(inputs, trues, preds1, preds2, preds3, ncols
         ssim_value3 = ssim(true, pred3)
 
         if t == 0:
-            ax_inputs.text(x=-0.01, y=0.5, s='Inputs', rotation=90, size=32, va='center', ha='right', transform=ax_inputs.transAxes)
-            ax_pred1.text(x=-0.01, y=0.5, s='50s 50e', rotation=90, size=32, va='center', ha='right', transform=ax_pred1.transAxes)
-            ax_pred2.text(x=-0.01, y=0.5, s='250s 250e', rotation=90, size=32, va='center', ha='right', transform=ax_pred2.transAxes)
-            ax_pred3.text(x=-0.01, y=0.5, s='5000s 1000e', rotation=90, size=32, va='center', ha='right', transform=ax_pred3.transAxes)
-            ax_true.text(x=-0.01, y=0.5, s='Ground truth', rotation=90, size=32, va='center', ha='right', transform=ax_true.transAxes)
+            ax_inputs.text(x=-0.01, y=0.5, s='Inputs', rotation=90, size=32, va='center', ha='right',
+                           transform=ax_inputs.transAxes)
+            ax_pred1.text(x=-0.01, y=0.5, s='50s 50e', rotation=90, size=32, va='center', ha='right',
+                          transform=ax_pred1.transAxes)
+            ax_pred2.text(x=-0.01, y=0.5, s='250s 250e', rotation=90, size=32, va='center', ha='right',
+                          transform=ax_pred2.transAxes)
+            ax_pred3.text(x=-0.01, y=0.5, s='5000s 1000e', rotation=90, size=32, va='center', ha='right',
+                          transform=ax_pred3.transAxes)
+            ax_true.text(x=-0.01, y=0.5, s='Ground truth', rotation=90, size=32, va='center', ha='right',
+                         transform=ax_true.transAxes)
 
         ax_pred1.text(0.5, -0.1, f"SSIM: {ssim_value1:.5f}", size=24, ha="center", transform=ax_pred1.transAxes)
         ax_pred2.text(0.5, -0.1, f"SSIM: {ssim_value2:.5f}", size=24, ha="center", transform=ax_pred2.transAxes)
@@ -356,6 +374,7 @@ def save_metrics_statistics(metrics, output_path):
         plt.savefig(plot_output_path)
         plt.close()
 
+
 def save_result_visualizations(save_folder, simulation, normalized=True, result_suffix=""):
     inputs = np.load(f'{save_folder}/inputs{result_suffix}.npy')
     trues = np.load(f'{save_folder}/trues{result_suffix}.npy')
@@ -395,11 +414,12 @@ def save_result_visualizations(save_folder, simulation, normalized=True, result_
                                 format='png',
                                 cmap=simulation.cmap,
                                 out_path=f'{save_folder}/{prefix}_metrics_{idx}.png')
-        show_video_line_ssim(inputs[idx], trues[idx], preds[idx], diff, ncols=aft_seq_length, vmax=vmax, vmin=0, cbar=False,
-                                format='png',
-                                cmap=simulation.cmap,
-                                diff_cmap=simulation.diff_cmap,
-                                out_path=f'{save_folder}/{prefix}_ssim_{idx}.png')
+        show_video_line_ssim(inputs[idx], trues[idx], preds[idx], diff, ncols=aft_seq_length, vmax=vmax, vmin=0,
+                             cbar=False,
+                             format='png',
+                             cmap=simulation.cmap,
+                             diff_cmap=simulation.diff_cmap,
+                             out_path=f'{save_folder}/{prefix}_ssim_{idx}.png')
 
     metric_files = ['mse.npy', 'mae.npy', 'lr.npy', 'train_loss.npy', 'vali_loss.npy']
 
@@ -420,7 +440,9 @@ def save_result_visualizations(save_folder, simulation, normalized=True, result_
     if train_loss is not None and vali_loss is not None:
         plot_combined_loss(train_loss, vali_loss, save_folder)
 
-def save_result_visualizations_comparison(save_folder1, save_folder2, save_folder3, simulation, normalized=True, result_suffix=""):
+
+def save_result_visualizations_comparison(save_folder1, save_folder2, save_folder3, simulation, normalized=True,
+                                          result_suffix=""):
     inputs = np.load(f'{save_folder1}/inputs{result_suffix}.npy')
     trues = np.load(f'{save_folder1}/trues{result_suffix}.npy')
     preds1 = np.load(f'{save_folder1}/preds{result_suffix}.npy')
@@ -433,60 +455,79 @@ def save_result_visualizations_comparison(save_folder1, save_folder2, save_folde
     pre_seq_length, aft_seq_length = inputs.shape[1], trues.shape[1]
 
     for idx in range(0, min(trues.shape[0], 5)):
-        show_video_line_ssim_comparison(inputs[idx], trues[idx], preds1[idx], preds2[idx], preds3[idx], ncols=aft_seq_length, vmax=vmax, vmin=0,
-                                cmap=simulation.cmap,
-                                diff_cmap=simulation.diff_cmap,
-                                format='png',
-                                out_path=f'./work_dirs/{prefix}_ssim_comparison_{idx}')
+        show_video_line_ssim_comparison(inputs[idx], trues[idx], preds1[idx], preds2[idx], preds3[idx],
+                                        ncols=aft_seq_length, vmax=vmax, vmin=0,
+                                        cmap=simulation.cmap,
+                                        diff_cmap=simulation.diff_cmap,
+                                        format='png',
+                                        out_path=f'./work_dirs/{prefix}_ssim_comparison_{idx}')
 
 
-def save_dataset_visualization(dataset, simulation_class, start_index=0, end_index=1, start_frame_index=0, end_frame_index=None, single=False, save_path="", normalized=True):
+def save_dataset_visualization(dataset, simulation_class, start_index=0, end_index=1, start_frame_index=0,
+                               end_frame_index=None, single=False, save_path="", normalized=True):
     vmax = 1 if normalized else simulation_class.vmax
     prefix = simulation_class.__name__.lower()
 
     if isinstance(dataset, dict):
-        process_dataset(dataset, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax, simulation_class.cmap, save_path)
+        process_dataset(dataset, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax,
+                        simulation_class.cmap, save_path)
     elif isinstance(dataset, np.ndarray):
-        process_array(dataset, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax, simulation_class.cmap, save_path)
+        process_array(dataset, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax,
+                      simulation_class.cmap, save_path)
     else:
         raise ValueError("Dataset must be either a dictionary of numpy arrays or a numpy array.")
 
-def process_dataset(dataset, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax, cmap, save_path):
+
+def process_dataset(dataset, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax, cmap,
+                    save_path):
     for key, value in dataset.items():
-        process_data(value, key, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax, cmap, save_path)
+        process_data(value, key, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax, cmap,
+                     save_path)
 
-def process_array(data, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax, cmap, save_path):
-    process_data(data, None, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax, cmap, save_path)
 
-def process_data(data, key, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax, cmap, save_path):
+def process_array(data, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax, cmap,
+                  save_path):
+    process_data(data, None, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax, cmap,
+                 save_path)
+
+
+def process_data(data, key, start_index, end_index, start_frame_index, end_frame_index, single, prefix, vmax, cmap,
+                 save_path):
     length = data.shape[0]
     for index in range(min(start_index, length), min(end_index, length)):
         data_to_save = data[index][start_frame_index:end_frame_index]
         save_data(data_to_save, key, index, start_frame_index, end_frame_index, single, prefix, vmax, cmap, save_path)
 
+
 def save_data(data, key, index, start_frame_index, end_frame_index, single, prefix, vmax, cmap, save_path):
     if single:
         for frame_index in range(data.shape[0]):
             frame_data = data[frame_index]
-            save_frames(frame_data, key, prefix, f'sample-{index}', f'frame-{start_frame_index + frame_index}', vmax, cmap, save_path)
+            save_frames(frame_data, key, prefix, f'sample-{index}', f'frame-{start_frame_index + frame_index}', vmax,
+                        cmap, save_path)
     else:
-        save_frames(data, key, prefix, f'sample-{index}', f'frames-{start_frame_index}-to-{end_frame_index if end_frame_index else data.shape[0] - 1}', vmax, cmap, save_path)
+        save_frames(data, key, prefix, f'sample-{index}',
+                    f'frames-{start_frame_index}-to-{end_frame_index if end_frame_index else data.shape[0] - 1}', vmax,
+                    cmap, save_path)
         filename = f"{prefix}{f'_{key}' if key else ''}_{index}_frames-{start_frame_index}-to-{end_frame_index if end_frame_index else data.shape[0] - 1}"
         show_video_gif_single(data, vmax=vmax, vmin=0, cmap=cmap, out_path=f'{save_path}/{filename}')
+
 
 def save_frames(data, key, prefix, index, frame_index, vmax, cmap, save_path):
     filename = f"{prefix}{f'_{key}' if key else ''}_{index}_{frame_index}"
     out_path = f'{save_path}/{filename}.png'
-    show_video_line(data, ncols=data.shape[0], vmax=vmax, vmin=0, cbar=False, format='png', cmap=cmap, out_path=out_path)
-
+    show_video_line(data, ncols=data.shape[0], vmax=vmax, vmin=0, cbar=False, format='png', cmap=cmap,
+                    out_path=out_path)
 
 
 def show_video_gif_single(data, vmax=0.6, vmin=0.0, cmap='gray', norm=None, out_path=None, use_rgb=False):
     """generate gif with a video sequence"""
+
     def swap_axes(x):
         if len(x.shape) > 3:
-            return x.swapaxes(1,2).swapaxes(2,3)
-        else: return x
+            return x.swapaxes(1, 2).swapaxes(2, 3)
+        else:
+            return x
 
     data = swap_axes(data)
     images = []

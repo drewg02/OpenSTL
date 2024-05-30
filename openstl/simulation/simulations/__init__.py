@@ -1,6 +1,6 @@
-from .simulation import Simulation
-from .heat_transfer import HeatTransfer
 from .boiling import Boiling
+from .heat_transfer import HeatTransfer
+from .simulation import Simulation
 
 simulations = [HeatTransfer, Boiling]
 

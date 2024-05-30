@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class ArrayType(str, Enum):
     OUTLINE = 'outline'
     CENTER = 'center'

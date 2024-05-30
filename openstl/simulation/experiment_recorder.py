@@ -1,6 +1,7 @@
-import os
-import json
 import hashlib
+import json
+import os
+
 
 def generate_experiment_record(**params):
     """Generate a dictionary for the experiment with a unique ID."""
@@ -9,6 +10,7 @@ def generate_experiment_record(**params):
     params['id'] = unique_id
     print(f'Unique Experiment ID: {unique_id}')
     return params
+
 
 def save_experiment_record(experiment_record, filename):
     """Save the experiment record to a JSON file, creating directory if needed."""
@@ -19,10 +21,12 @@ def save_experiment_record(experiment_record, filename):
     with open(filename, 'w') as file:
         json.dump(experiment_record, file, indent=4)
 
+
 def load_experiment_record(filename):
     """Load the experiment record from a JSON file."""
     with open(filename, 'r') as file:
         return json.load(file)
+
 
 def generate_unique_id(experiment_record):
     """Generate a SHA-256 hash as a unique ID for the experiment record."""
