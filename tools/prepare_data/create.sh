@@ -135,7 +135,7 @@ echo "  Validation ratio: $VAL_RATIO"
 echo "  Number of final samples: $NUM_FINAL_SAMPLES"
 
 commands=(
-    "python ./tools/prepare_data/generate_initials.py \
+    "python ./tools/prepare_data/gen_initials.py \
         --simulation $SIMULATION \
         ${NUM_INITIALS:+--num_initials $NUM_INITIALS} \
         ${IMAGE_HEIGHT:+--image_height $IMAGE_HEIGHT} \
@@ -147,13 +147,12 @@ commands=(
         ${INCREMENT:+--increment $INCREMENT} \
         --datafolder $DATAFOLDER"
 
-    "python ./tools/prepare_data/generate_samples.py \
-        --simulation $SIMULATION \
+    "python ./tools/prepare_data/gen_samples.py \
         ${TOTAL_SAMPLE_LENGTH:+--total_sample_length $TOTAL_SAMPLE_LENGTH} \
         ${NORMALIZE:+--normalize} \
         --datafolder $DATAFOLDER"
 
-    "python ./tools/prepare_data/prepare_loaders.py \
+    "python ./tools/prepare_data/prep_loaders.py \
         ${NUM_SAMPLES:+--num_samples $NUM_SAMPLES} \
         ${SAMPLE_START_INDEX:+--sample_start_index $SAMPLE_START_INDEX} \
         ${TOTAL_LENGTH:+--total_length $TOTAL_LENGTH} \
