@@ -1,14 +1,15 @@
 import os
-import time
 import numpy as np
+from tqdm import tqdm
+
 from .array_type import ArrayType
 from openstl.simulation.experiment_recorder import generate_unique_id
 from openstl.simulation.preparation import normalize_data_min_max
-from openstl.simulation.simulations import simulations
 from openstl.simulation.utils import get_simulation_class
 
-def update_array(array, mask, array_type, vmin=0.0, vmax=1.0, thickness=1, chance=0.2, static_cells_random=False,
-                 dynamic_cells_random=False):
+
+def update_array(array, mask, array_type, vmin=0.0, vmax=1.0, thickness=1, chance=0.2,
+                 static_cells_random=False, dynamic_cells_random=False):
     """
     Updates the array and mask based on the array type.
 
@@ -27,9 +28,6 @@ def update_array(array, mask, array_type, vmin=0.0, vmax=1.0, thickness=1, chanc
     - The final array and mask after updating.
     """
 
-    # if the user set the chance to None or <= 0, then each time we want to select a new
-    # random chance for just this call - creating a more diverse dataset - one that isn't
-    # just trained on 20% chance samples, for instance.
     if chance is None or chance <= 0:
         chance = np.random.random()
         print(f"Chance was None (or <= 0) - so this initial condition we will use randomly chosen chance of: {chance}")
@@ -68,8 +66,8 @@ def update_array(array, mask, array_type, vmin=0.0, vmax=1.0, thickness=1, chanc
     return array, mask
 
 
-def create_array(rows, cols, array_type, vmin=0.0, vmax=1.0, thickness=1, chance=0.2, static_cells_random=False,
-                 dynamic_cells_random=False):
+def create_array(rows, cols, array_type, vmin=0.0, vmax=1.0, thickness=1, chance=0.2,
+                 static_cells_random=False, dynamic_cells_random=False):
     """
     Creates and returns a new array and mask.
 
@@ -93,8 +91,9 @@ def create_array(rows, cols, array_type, vmin=0.0, vmax=1.0, thickness=1, chance
                              dynamic_cells_random)
     return arr, mask
 
+
 def create_initials(rows, cols, num_initials, simulation_class, array_type, datafolder_out, thickness=1, chance=0.2,
-                   static_cells_random=False, dynamic_cells_random=False, verbose=True):
+                    static_cells_random=False, dynamic_cells_random=False, verbose=True):
     """
     Generates a series of samples with initial conditions and applies a stencil over iterations.
 
@@ -104,7 +103,7 @@ def create_initials(rows, cols, num_initials, simulation_class, array_type, data
     - num_initials: Number of initials to generate.
     - simulation_class: The Simulation class used to generate the initials.
     - array_type: The ArrayType for the initial condition.
-    - save_path: The path to save the initials.
+    - datafolder_out: The path to save the initials.
     - thickness: Thickness for the lines in OUTLINE, CENTER and PLUS array types.
     - chance: Probability used for RANDOM and RANDOM_UNIFORM array types.
     - static_cells_random: For RANDOM array type. When True it fills the array with random values instead of the vmax where the mask is 1.
@@ -114,11 +113,13 @@ def create_initials(rows, cols, num_initials, simulation_class, array_type, data
     Returns: None
     """
 
-    start_time = time.time()
-    last_progress = 0
-    for i in range(num_initials):
-        arr, mask = create_array(rows, cols, array_type, simulation_class.vmin, simulation_class.vmax, thickness, chance,
-                                 static_cells_random, dynamic_cells_random)
+    progress_iterator = range(num_initials)
+    if verbose:
+        progress_iterator = tqdm(progress_iterator, desc="Generating initials")
+
+    for i in progress_iterator:
+        arr, mask = create_array(rows, cols, array_type, simulation_class.vmin, simulation_class.vmax, thickness,
+                                 chance, static_cells_random, dynamic_cells_random)
 
         unique_id = generate_unique_id(arr.tolist())
         name = f'{unique_id}_{simulation_class.__name__.lower()}_{i}'
@@ -127,12 +128,6 @@ def create_initials(rows, cols, num_initials, simulation_class, array_type, data
             os.makedirs(folder)
         np.save(f'{folder}/0.npy', arr)
 
-        progress = ((i + 1) / num_initials) * 100
-        if verbose and progress - last_progress >= 1:
-            last_progress = progress
-            elapsed_time = time.time() - start_time
-            print(f"{progress:.2f}% done, generated {i + 1}/{num_initials} initials, {elapsed_time:.2f} seconds elapsed")
-
 
 def create_samples(total_frames, datafolder, normalize, args, verbose=True):
     """
@@ -140,20 +135,22 @@ def create_samples(total_frames, datafolder, normalize, args, verbose=True):
 
     Arguments:
     - total_frames: Number of frames for each sample.
-    - simulation: The Simulation class used to apply the simulation.
-    - save_path: The path to save the initials.
+    - datafolder: The path to save the initials.
+    - normalize: If True, normalizes the data.
+    - args: Arguments for the simulation class.
     - verbose: If True, prints the progress of the generation.
 
-    Returns: Nones
+    Returns: None
     """
-    start_time = time.time()
-    last_progress = 0
 
     folders = [f for f in os.listdir(datafolder) if os.path.isdir(os.path.join(datafolder, f))]
 
     sims = {}
-    num_samples = len(folders)
-    for i, unique_id in enumerate(folders):
+    progress_iterator = folders
+    if verbose:
+        progress_iterator = tqdm(progress_iterator, desc="Generating samples")
+
+    for unique_id in progress_iterator:
         files = [f for f in os.listdir(f'{datafolder}/{unique_id}') if f.endswith('.npy')]
         if len(files) != 1:
             continue
@@ -177,9 +174,3 @@ def create_samples(total_frames, datafolder, normalize, args, verbose=True):
             elif j == 0:
                 continue
             np.save(f'{datafolder}/{unique_id}/{j}.npy', sample)
-
-        progress = ((i + 1) / num_samples) * 100
-        if verbose and progress - last_progress >= 1:
-            last_progress = progress
-            elapsed_time = time.time() - start_time
-            print(f"{progress:.2f}% done, generated {i + 1}/{num_samples} samples, {elapsed_time:.2f} seconds elapsed")

@@ -1,13 +1,13 @@
 # Copyright (c) CAIRI AI Lab. All rights reserved
 
+import json
+import logging
 import os
 import os.path as osp
-import time
-import logging
-import json
-import numpy as np
 import shutil
+import time
 
+import numpy as np
 import torch
 import torch.distributed as dist
 
@@ -20,6 +20,7 @@ from openstl.utils import (set_seed, print_log, check_dir, collect_env,
 
 try:
     import nni
+
     has_nni = True
 except ImportError:
     has_nni = False
@@ -76,7 +77,7 @@ class SimulationExperiment(BaseExperiment):
         # log and checkpoint
         base_dir = self.args.res_dir if self.args.res_dir is not None else 'work_dirs'
         self.path = osp.join(base_dir, self.args.ex_name if not self.args.ex_name.startswith(self.args.res_dir) \
-            else self.args.ex_name.split(self.args.res_dir+'/')[-1])
+            else self.args.ex_name.split(self.args.res_dir + '/')[-1])
         self.checkpoints_path = osp.join(self.path, 'checkpoints')
         if self._rank == 0:
             check_dir(self.path)
@@ -166,7 +167,7 @@ class SimulationExperiment(BaseExperiment):
 
         if self.args.test:
             self.train_loader = self.test_loader
-        
+
         self._max_iters = self._max_epochs * len(self.train_loader)
 
     def _save(self, name=''):
@@ -236,8 +237,9 @@ class SimulationExperiment(BaseExperiment):
                     vali_loss = self.vali()
 
                 if self._rank == 0:
-                    print_log('Epoch: {0}, Steps: {1} | Lr: {2:.7f} | Train Loss: {3:.7f} | Vali Loss: {4:.7f}\n'.format(
-                        epoch + 1, len(self.train_loader), cur_lr, loss_mean.avg, vali_loss))
+                    print_log(
+                        'Epoch: {0}, Steps: {1} | Lr: {2:.7f} | Train Loss: {3:.7f} | Vali Loss: {4:.7f}\n'.format(
+                            epoch + 1, len(self.train_loader), cur_lr, loss_mean.avg, vali_loss))
                     early_stop = recorder(vali_loss, self.method.model, self.path)
 
                     # retain data
@@ -313,7 +315,21 @@ class SimulationExperiment(BaseExperiment):
             folder_path = save_dir if save_dir else osp.join(self.path, 'saved')
             check_dir(folder_path)
 
-            for np_data in ['metrics', 'inputs', 'trues', 'preds']:
+            for np_data in ['metrics']:
                 np.save(osp.join(folder_path, np_data + '.npy'), results[np_data])
+
+            for result_data in ['inputs', 'trues', 'preds']:
+                data = results[result_data]
+                for i in range(len(data)):
+                    line = data[i]
+
+                    unique_id = self.test_loader.dataset.data['samples'][i][0].split('/')[-2]
+
+                    save_path = osp.join(folder_path, result_data, unique_id)
+                    if not osp.exists(save_path):
+                        os.makedirs(save_path)
+
+                    for j in range(len(line)):
+                        np.save(osp.join(save_path, f'{j}.npy'), line[j])
 
         return eval_res['mse']

@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 from openstl.simulation import SimulationDataset
 from openstl.simulation.simulations import simulations
 
+
 def create_parser():
     parser = argparse.ArgumentParser(
         description='OpenSTL train/test a model')
@@ -128,15 +129,19 @@ def create_parser():
                         help='Whether to set the weight decay of bias and bn to 0')
 
     # Simulation parameters
-    parser.add_argument('--train', action='store_true', default=False, help='Perform training')
+    parser.add_argument('--datafile_in', type=str, required=True,
+                        help='Specifies the input data file path.')
 
     return parser
+
 
 def create_dataloader(data, pre_seq_length=10, aft_seq_length=10, batch_size=16, shuffle=False):
     dataset = SimulationDataset(data, pre_seq_length, aft_seq_length)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
-def create_dataloaders(file_path, pre_seq_length=10, aft_seq_length=10, batch_size=16, val_batch_size=16, test_batch_size=16):
+
+def create_dataloaders(file_path, pre_seq_length=10, aft_seq_length=10, batch_size=16, val_batch_size=16,
+                       test_batch_size=16):
     if not os.path.exists(file_path):
         return None, None, None
 
@@ -185,30 +190,21 @@ def generate_configs(pre_seq_length, aft_seq_length, image_height, image_width, 
 
     return custom_training_config, custom_model_config
 
+
 def get_simulation_class(simulation_name):
-    simulation_class = [simulation for simulation in simulations if simulation.__name__.lower() == simulation_name.lower()]
+    simulation_class = [simulation for simulation in simulations if
+                        simulation.__name__.lower() == simulation_name.lower()]
     if not simulation_class:
         raise ValueError(f"Invalid simulation: {simulation_name}")
     return simulation_class[0]
 
-def get_seq_lengths(args):
-    pre_seq_length = args.pre_seq_length
-    aft_seq_length =  args.aft_seq_length
-    total_length = args.total_length
-    if pre_seq_length and aft_seq_length and not total_length:
-        total_length = pre_seq_length + aft_seq_length
-
-    if pre_seq_length and aft_seq_length and pre_seq_length + aft_seq_length != total_length:
-        raise ValueError(
-            f"pre_seq_length ({pre_seq_length}) + aft_seq_length ({aft_seq_length}) must be equal to total_length ({total_length})")
-
-    return pre_seq_length, aft_seq_length, total_length
 
 def load_data(file_path):
     with open(file_path, 'rb') as f:
         dataset = pickle.load(f)
 
     return dataset
+
 
 def save_data(dataset, file_path):
     folder_path = os.path.dirname(file_path)
