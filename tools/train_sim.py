@@ -4,11 +4,7 @@ from openstl.utils import default_parser
 
 
 def main():
-    parser = create_parser()
-    parser.add_argument('--datafile_in', type=str, required=True,
-                        help='Specifies the input data file path.')
-
-    args = parser.parse_args()
+    args = create_parser().parse_args()
 
     dataloader_train, dataloader_val, dataloader_test = create_dataloaders(args.datafile_in,
                                                                            args.pre_seq_length,
