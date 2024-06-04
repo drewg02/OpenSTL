@@ -8,6 +8,29 @@ from tqdm import tqdm
 from openstl.simulation.utils import get_simulation_class
 
 
+def load_data(datafolder, limit=100):
+    folders = [f for f in os.listdir(datafolder) if os.path.isdir(os.path.join(datafolder, f))]
+    
+    dataset = []
+    for unique_id in folders:
+        if len(dataset) >= limit:
+            break
+
+        files = [f for f in os.listdir(f'{datafolder}/{unique_id}') if f.endswith('.npy')]
+        if len(files) < 1:
+            continue
+
+        files = [f for f in os.listdir(f'{datafolder}/{unique_id}') if f.endswith('.npy')]
+        data = []
+        for i in range(0, len(files)):
+            data.append(np.load(f'{datafolder}/{unique_id}/{i}.npy'))
+
+        data = np.array(data)
+        data = np.squeeze(data)
+        dataset.append(data)
+
+    return np.array(dataset)
+
 # Base function for plotting arrays
 def plot_arrays(arrays, filename, rows=None, cols=None, wspace=10, hspace=10, dpi=100, formats=None, show=False,
                 texts=None, text_positions=None, font_size=12, line_height=1.2, cmaps=None):
@@ -101,8 +124,6 @@ def save_visualization(datafolder, simulation_class, start_frame_index=0,
             simulation_name = simulation_class.__name__
 
         sim = sims[simulation_name]
-        files = [f for f in os.listdir(f'{datafolder}/{unique_id}') if f.endswith('.npy')]
-
         if single:
             for file in files:
                 data = np.load(f'{datafolder}/{unique_id}/{file}')
@@ -142,8 +163,9 @@ def save_result_visualization(datafolder, simulation_class, start_frame_index=0,
         if not os.path.exists(result_folder):
             continue
 
+        save_folder = os.path.join(save_path, result_data)
         save_visualization(result_folder, simulation_class, start_frame_index, end_frame_index, single, rows, space,
-                           save_path, prefix, verbose)
+                           save_folder, prefix, verbose)
 
 
 def calculate_tsse(actual, forecast):
@@ -188,7 +210,7 @@ def plot_arrays_tsse(trues, preds, filename, cmap='coolwarm'):
 
 # Function for plotting with the ssim metric
 def plot_arrays_ssim(inputs, trues, preds, diff, filename, cmap='coolwarm', diff_cmap='gray'):
-    num_frames, height, width = trues.shape
+    num_frames, height, width = inputs.shape
     arrays = np.concatenate((inputs, trues, preds, diff), axis=0)
 
     texts = []
