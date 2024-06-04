@@ -17,7 +17,7 @@ def main():
                         help='Specifies the end index of the frames for visualization.')
 
     parser.add_argument('--output_single_images', action='store_true',
-                        help='If set, output single images for each frame. Otherwise, output a concatenated line of images.')
+                        help='If set, outputs single images for each frame. Otherwise, outputs a concatenated grid of images.')
     parser.add_argument('--rows', type=int, default=1,
                         help='Specifies the number of rows for the concatenated images.')
     parser.add_argument('--space', type=int, default=10,

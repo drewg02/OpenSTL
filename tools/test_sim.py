@@ -28,10 +28,11 @@ def main():
 
     exp = SimulationExperiment(args, dataloaders=(dataloader_train, dataloader_val, dataloader_test))
 
-    print('>' * 35 + f' testing {args.ex_name}  ' + '<' * 35)
     if config['inference'] and not config['test']:
+        print('>' * 35 + f' inferencing {args.ex_name}  ' + '<' * 35)
         exp.inference()
     else:
+        print('>' * 35 + f' testing {args.ex_name}  ' + '<' * 35)
         exp.test()
 
 
