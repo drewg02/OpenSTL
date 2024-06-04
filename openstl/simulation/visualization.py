@@ -209,7 +209,7 @@ def plot_arrays_tsse(trues, preds, filename, cmap='coolwarm'):
 
 
 # Function for plotting with the ssim metric
-def plot_arrays_ssim(inputs, trues, preds, diff, filename, cmap='coolwarm', diff_cmap='gray'):
+def plot_arrays_ssim(inputs, trues, preds, diff, filename, cmap='coolwarm', diff_cmap='gray', float_fmt='.5f'):
     num_frames, height, width = inputs.shape
     arrays = np.concatenate((inputs, trues, preds, diff), axis=0)
 
@@ -243,7 +243,7 @@ def plot_arrays_ssim(inputs, trues, preds, diff, filename, cmap='coolwarm', diff
                 text_position.append('left')
 
             ssim_value = ssim(trues[idx - (num_frames * 3)], preds[idx - (num_frames * 3)])
-            text.append(f"SSIM: {ssim_value:.2f}")
+            text.append(f"SSIM: {ssim_value:f'{float_fmt}'}")
             text_position.append('bottom')
 
             cmaps.append(diff_cmap)
