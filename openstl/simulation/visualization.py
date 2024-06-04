@@ -65,7 +65,7 @@ def plot_arrays(arrays, filename, rows=None, cols=None, wspace=10, hspace=10, dp
     for idx, ax in enumerate(axarr.flat):
         if idx < num_arrays:
             cmap = cmaps[idx] if cmaps and idx < len(cmaps) else 'gray'
-            ax.imshow(arrays[idx], cmap=cmap)
+            ax.imshow(arrays[idx], cmap=cmap, vmin=0, vmax=1)
             if texts and idx < len(texts) and texts[idx]:
                 text_set = texts[idx]
                 text_position_set = text_positions[idx] if text_positions and idx < len(text_positions) else [
@@ -207,11 +207,12 @@ def plot_arrays_tsse(trues, preds, filename, cmap='coolwarm'):
     plot_arrays(arrays, filename, rows=rows, cols=cols, texts=texts,
                 text_positions=text_positions, font_size=18, cmaps=[cmaps])
 
-
 # Function for plotting with the ssim metric
 def plot_arrays_ssim(inputs, trues, preds, diff, filename, cmap='coolwarm', diff_cmap='gray', float_fmt='.5f'):
     num_frames, height, width = inputs.shape
     arrays = np.concatenate((inputs, trues, preds, diff), axis=0)
+
+    print(inputs)
 
     texts = []
     text_positions = []
