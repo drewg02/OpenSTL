@@ -212,8 +212,6 @@ def plot_arrays_ssim(inputs, trues, preds, diff, filename, cmap='coolwarm', diff
     num_frames, height, width = inputs.shape
     arrays = np.concatenate((inputs, trues, preds, diff), axis=0)
 
-    print(inputs)
-
     texts = []
     text_positions = []
     cmaps = []
