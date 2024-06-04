@@ -1,42 +1,46 @@
 import argparse
-import os
-import time
 
 from openstl.simulation.simulations import simulations
-from openstl.simulation.visualization import load_results, save_result_images
+from openstl.simulation.utils import get_simulation_class
+from openstl.simulation.visualization import save_result_visualization
 
 
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Create visualizations for each experiment.")
-    parser.add_argument("--simulation", type=str, required=True,
-                        choices=[simulation.__name__ for simulation in simulations],
-                        help="Select the type of simulation to use.")
-    parser.add_argument('--res_dir', type=str, default='work_dirs', help="Directory to save results.")
-    parser.add_argument('--output_dir', type=str, help="Directory to save visualizations.")
-    parser.add_argument("--ex_name", type=str, help="Experiment name")
+
+    parser.add_argument('--simulation', type=str, choices=[simulation.__name__ for simulation in simulations],
+                        help='Determines the simulation type.', required=False)
+
+    parser.add_argument('--start_frame_index', type=int, default=0,
+                        help='Specifies the start index of the frames for visualization.')
+    parser.add_argument('--end_frame_index', type=int, default=None,
+                        help='Specifies the end index of the frames for visualization.')
+
+    parser.add_argument('--output_single_images', action='store_true',
+                        help='If set, output single images for each frame. Otherwise, output a concatenated line of images.')
+    parser.add_argument('--rows', type=int, default=1,
+                        help='Specifies the number of rows for the concatenated images.')
+    parser.add_argument('--space', type=int, default=10,
+                        help='Specifies the space between the images in the concatenated output.')
+
+    parser.add_argument('--datafolder', type=str, required=True,
+                        help='Specifies the input data file path.')
+    parser.add_argument('--save_path', type=str,
+                        help='Specifies the folder path where the visualizations will be saved.', required=True)
 
     args = parser.parse_args()
 
-    # Find the simulation class based on the given argument
-    simulation_class = next((simulation for simulation in simulations if simulation.__name__ == args.simulation), None)
-    if simulation_class is None:
-        raise ValueError(f'Invalid simulation class {args.simulation}')
+    if args.simulation:
+        simulation_class = get_simulation_class(args.simulation)
+        if not simulation_class:
+            raise ValueError(f"Invalid simulation: {args.simulation}")
+    else:
+        simulation_class = None
 
-    # Visualize the results
-    print(f'Starting visualization of experiment {args.ex_name}')
-    start_time = time.time()
-
-    input_dir = os.path.join(args.res_dir, args.ex_name, 'saved')
-
-    if args.output_dir is None:
-        args.output_dir = os.path.join(args.res_dir, args.ex_name, 'visualizations')
-
-    inputs, trues, preds = load_results(input_dir)
-    save_result_images(inputs, trues, preds, simulation_class, args.output_dir)
-
-    elapsed_time = time.time() - start_time
-    print(f'Finished visualization of experiment {args.ex_name}, took {elapsed_time:.2f} seconds')
+    save_result_visualization(args.datafolder, simulation_class,
+                              args.start_frame_index, args.end_frame_index, args.output_single_images, args.rows,
+                              args.space, args.save_path)
 
 
 if __name__ == "__main__":

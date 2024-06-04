@@ -64,7 +64,7 @@ def get_mpl_colormap(cmap_name):
     return color_range.reshape(256, 1, 3)
 
 
-def show_video_line(data, ncols, vmax=0.6, vmin=0.0, cmap='gray', norm=None, cbar=False, format='png', out_path=None, use_rgb=False, show=False):
+def show_video_line(data, ncols, vmax=1, vmin=0.0, cmap='gray', norm=None, cbar=False, format='png', out_path=None, use_rgb=False, show=False):
     """generate images with a video sequence"""
     fig, axes = plt.subplots(nrows=1, ncols=ncols, figsize=(3.25 * ncols, 3))
     plt.subplots_adjust(wspace=0.01, hspace=0)
