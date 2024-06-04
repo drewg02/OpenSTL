@@ -10,7 +10,7 @@ from openstl.simulation.utils import get_simulation_class
 
 def load_data(datafolder, limit=100):
     folders = [f for f in os.listdir(datafolder) if os.path.isdir(os.path.join(datafolder, f))]
-    
+
     dataset = []
     for unique_id in folders:
         if len(dataset) >= limit:
@@ -243,7 +243,7 @@ def plot_arrays_ssim(inputs, trues, preds, diff, filename, cmap='coolwarm', diff
                 text_position.append('left')
 
             ssim_value = ssim(trues[idx - (num_frames * 3)], preds[idx - (num_frames * 3)])
-            text.append(f"SSIM: {ssim_value:f'{float_fmt}'}")
+            text.append(f"SSIM: {ssim_value:>{float_fmt}}")
             text_position.append('bottom')
 
             cmaps.append(diff_cmap)
