@@ -171,7 +171,7 @@ def check_samples(datafolders, verbose=True):
     return True
 
 
-def copy_samples(datafolders, new_datafolder, verbose=True):
+def copy_samples(datafolders, new_datafolder, move=True, verbose=True):
     """
     Copies samples from multiple datafolders to a new datafolder.
 
@@ -182,7 +182,6 @@ def copy_samples(datafolders, new_datafolder, verbose=True):
 
     Returns: None
     """
-
     for datafolder in datafolders:
         folders = [f for f in os.listdir(datafolder) if os.path.isdir(os.path.join(datafolder, f))]
 
@@ -191,13 +190,15 @@ def copy_samples(datafolders, new_datafolder, verbose=True):
             progress_iterator = tqdm(progress_iterator, desc="Moving samples")
 
         for unique_id in progress_iterator:
-            files = [f for f in os.listdir(f'{datafolder}/{unique_id}') if f.endswith('.npy')]
-            if len(files) < 1:
-                continue
+            src_folder = os.path.join(datafolder, unique_id)
 
-            if not os.path.exists(f'{new_datafolder}/{unique_id}'):
-                os.makedirs(f'{new_datafolder}/{unique_id}')
+            if move:
+                shutil.move(src_folder, new_datafolder)
+            else:
+                dest_folder = os.path.join(new_datafolder, unique_id)
 
-            # os copy
-            for file in files:
-                shutil.copy(f'{datafolder}/{unique_id}/{file}', f'{new_datafolder}/{unique_id}/{file}')
+                if not os.path.exists(dest_folder):
+                    os.makedirs(dest_folder)
+
+                # Copy entire directory
+                shutil.copytree(src_folder, dest_folder, dirs_exist_ok=True)

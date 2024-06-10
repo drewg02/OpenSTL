@@ -17,6 +17,8 @@ def create_local_parser():
                         help='Specifies the data folder paths.')
     parser.add_argument('--new_datafolder', type=str, required=True,
                         help='Specifies the new data folder path.')
+    parser.add_argument('--move', action='store_true',
+                        help='If set, moves the files instead of copying.')
 
     return parser
 
@@ -32,7 +34,7 @@ def main():
             print(f"Path '{args.new_datafolder}' does not exist. Creating...")
             os.makedirs(args.new_datafolder)
 
-        copy_samples(args.datafolders, args.new_datafolder, verbose=True)
+        copy_samples(args.datafolders, args.new_datafolder, args.move, verbose=True)
     else:
         print("Samples did not pass check.")
 
@@ -40,7 +42,8 @@ def main():
 
     copy_arguments = {
         'datafolders': args.datafolders,
-        'new_datafolder': args.new_datafolder
+        'new_datafolder': args.new_datafolder,
+        'move': args.move
     }
 
     record = generate_experiment_record(**copy_arguments)
