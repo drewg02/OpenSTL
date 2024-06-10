@@ -2,6 +2,7 @@ import time
 import os
 
 from argparse import ArgumentParser as ArgParser
+from openstl.simulation.experiment_recorder import generate_experiment_record, save_experiment_record
 
 from openstl.simulation.preparation import check_samples, copy_samples
 
@@ -36,6 +37,14 @@ def main():
         print("Samples did not pass check.")
 
     elapsed = time.time() - start_time  # Calculate the elapsed time.
+
+    copy_arguments = {
+        'datafolders': args.datafolders,
+        'new_datafolder': args.new_datafolder
+    }
+
+    record = generate_experiment_record(**copy_arguments)
+    save_experiment_record(record, os.path.join(args.new_datafolder, f"{record['id']}_copy.json"))
 
     print(f"Copying samples took {elapsed} seconds.")  # Print the time taken to check and copy samples.
 
