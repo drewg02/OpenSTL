@@ -1,7 +1,8 @@
 import os
+import shutil
 
 import numpy as np
-
+from tqdm import tqdm
 
 def normalize_data_min_max(dataset, vmin, vmax):
     """
@@ -122,3 +123,81 @@ def load_files(datafolder, num_samples, sample_start_index, total_length):
         data.append(final_files)
 
     return data
+
+
+def check_samples(datafolders, verbose=True):
+    """
+    Checks samples
+
+    Arguments:
+    - datafolder: The list of datafolders to check.
+    - verbose: If True, prints the progress of the generation.
+
+    Returns: None
+    """
+
+    hashes = {}
+    for datafolder in datafolders:
+        folders = [f for f in os.listdir(datafolder) if os.path.isdir(os.path.join(datafolder, f))]
+
+        progress_iterator = folders
+        if verbose:
+            progress_iterator = tqdm(progress_iterator, desc="Checking samples")
+
+        for unique_id in progress_iterator:
+            files = [f for f in os.listdir(f'{datafolder}/{unique_id}') if f.endswith('.npy')]
+            if len(files) < 1:
+                continue
+
+            hash = unique_id.split('_')[0]
+            if hashes.get(hash):
+                first_file = hashes[hash]
+                second_file = f'{datafolder}/{unique_id}/0.npy'
+
+                first_data = np.load(first_file)
+                second_data = np.load(second_file)
+
+                print(f"Hash collision: {hash}")
+                print(f"First file: {first_file}")
+                print(f"Second file: {second_file}")
+                if not np.array_equal(first_data, second_data):
+                    print("Data is not equal.\n")
+                else:
+                    print("Data is equal, cancelling.")
+                    return False
+
+            hashes[hash] = f'{datafolder}/{unique_id}/0.npy'
+
+    return True
+
+
+def copy_samples(datafolders, new_datafolder, verbose=True):
+    """
+    Copies samples from multiple datafolders to a new datafolder.
+
+    Arguments:
+    - datafolders: The list of datafolders to move samples from.
+    - new_datafolder: The new datafolder to move the samples to.
+    - verbose: If True, prints the progress of the generation.
+
+    Returns: None
+    """
+
+    for datafolder in datafolders:
+        folders = [f for f in os.listdir(datafolder) if os.path.isdir(os.path.join(datafolder, f))]
+
+        progress_iterator = folders
+        if verbose:
+            progress_iterator = tqdm(progress_iterator, desc="Moving samples")
+
+        for unique_id in progress_iterator:
+            files = [f for f in os.listdir(f'{datafolder}/{unique_id}') if f.endswith('.npy')]
+            if len(files) < 1:
+                continue
+
+            if not os.path.exists(f'{new_datafolder}/{unique_id}'):
+                os.makedirs(f'{new_datafolder}/{unique_id}')
+
+            # os copy
+            for file in files:
+                shutil.copy(f'{datafolder}/{unique_id}/{file}', f'{new_datafolder}/{unique_id}/{file}')
