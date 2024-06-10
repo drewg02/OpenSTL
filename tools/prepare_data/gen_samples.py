@@ -28,10 +28,11 @@ def create_local_parser():
 
 def main():
     args = create_local_parser().parse_args()  # Parse the command line arguments.
+    args_dict = vars(args)
 
     start_time = time.time()  # Record the start time.
     # Generate samples based on the provided parameters.
-    create_samples(args.total_sample_length, args.datafolder, args.normalize, args, verbose=True)
+    create_samples(args.total_sample_length, args.datafolder, args.normalize, args_dict, verbose=True)
 
     elapsed = time.time() - start_time  # Calculate the elapsed time.
 

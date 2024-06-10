@@ -13,13 +13,15 @@ class Boiling(Simulation):
 
     def __init__(self, args=None):
         super().__init__()
-        if args is None:
-            self.args = default_args
-        else:
-            self.args = default_args.copy()
-            self.args.update(args)
 
-        self.increment = self.args['increment']
+        if args is None:
+            args = {}
+
+        # Update args with defaults if not present
+        for key, value in default_args.items():
+            args.setdefault(key, value)
+
+        self.increment = args['increment']
 
     def apply(self, samples, mask, iterations, save_history=True):
         """
