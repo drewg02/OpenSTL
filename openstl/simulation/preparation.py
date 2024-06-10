@@ -137,36 +137,39 @@ def check_samples(datafolders, verbose=True):
     """
 
     hashes = {}
+
+    folders = []
     for datafolder in datafolders:
-        folders = [f for f in os.listdir(datafolder) if os.path.isdir(os.path.join(datafolder, f))]
+        folders += [os.path.join(datafolder, f) for f in os.listdir(datafolder) if os.path.isdir(os.path.join(datafolder, f))]
 
-        progress_iterator = folders
-        if verbose:
-            progress_iterator = tqdm(progress_iterator, desc="Checking samples")
+    progress_iterator = folders
+    if verbose:
+        progress_iterator = tqdm(progress_iterator, desc="Checking samples")
 
-        for unique_id in progress_iterator:
-            files = [f for f in os.listdir(f'{datafolder}/{unique_id}') if f.endswith('.npy')]
-            if len(files) < 1:
-                continue
+    for folder in progress_iterator:
+        unique_id = folder.split('/')[-1]
+        files = [f for f in os.listdir(folder) if f.endswith('.npy')]
+        if len(files) < 1:
+            continue
 
-            hash = unique_id.split('_')[0]
-            if hashes.get(hash):
-                first_file = hashes[hash]
-                second_file = f'{datafolder}/{unique_id}/0.npy'
+        hash = unique_id.split('_')[0]
+        if hashes.get(hash):
+            first_file = hashes[hash]
+            second_file = f'{folder}/0.npy'
 
-                first_data = np.load(first_file)
-                second_data = np.load(second_file)
+            first_data = np.load(first_file)
+            second_data = np.load(second_file)
 
-                print(f"Hash collision: {hash}")
-                print(f"First file: {first_file}")
-                print(f"Second file: {second_file}")
-                if not np.array_equal(first_data, second_data):
-                    print("Data is not equal.\n")
-                else:
-                    print("Data is equal, cancelling.")
-                    return False
+            print(f"Hash collision: {hash}")
+            print(f"First file: {first_file}")
+            print(f"Second file: {second_file}")
+            if not np.array_equal(first_data, second_data):
+                print("Data is not equal.\n")
+            else:
+                print("Data is equal, cancelling.")
+                return False
 
-            hashes[hash] = f'{datafolder}/{unique_id}/0.npy'
+        hashes[hash] = f'{folder}/0.npy'
 
     return True
 
@@ -182,23 +185,25 @@ def copy_samples(datafolders, new_datafolder, move=True, verbose=True):
 
     Returns: None
     """
+
+    folders = []
     for datafolder in datafolders:
-        folders = [f for f in os.listdir(datafolder) if os.path.isdir(os.path.join(datafolder, f))]
+        folders += [os.path.join(datafolder, f) for f in os.listdir(datafolder) if os.path.isdir(os.path.join(datafolder, f))]
 
-        progress_iterator = folders
-        if verbose:
-            progress_iterator = tqdm(progress_iterator, desc="Moving samples")
+    progress_iterator = folders
+    if verbose:
+        progress_iterator = tqdm(progress_iterator, desc="Moving samples")
 
-        for unique_id in progress_iterator:
-            src_folder = os.path.join(datafolder, unique_id)
+    for folder in progress_iterator:
+        unique_id = folder.split('/')[-1]
 
-            if move:
-                shutil.move(src_folder, new_datafolder)
-            else:
-                dest_folder = os.path.join(new_datafolder, unique_id)
+        if move:
+            shutil.move(folder, new_datafolder)
+        else:
+            dest_folder = os.path.join(new_datafolder, unique_id)
 
-                if not os.path.exists(dest_folder):
-                    os.makedirs(dest_folder)
+            if not os.path.exists(dest_folder):
+                os.makedirs(dest_folder)
 
-                # Copy entire directory
-                shutil.copytree(src_folder, dest_folder, dirs_exist_ok=True)
+            # Copy entire directory
+            shutil.copytree(folder, dest_folder, dirs_exist_ok=True)
