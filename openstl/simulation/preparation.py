@@ -4,18 +4,21 @@ import shutil
 import numpy as np
 from tqdm import tqdm
 
+
 def normalize_data_min_max(dataset, vmin, vmax):
     """
     Normalizes the dataset using min-max scaling to a range of [0, 1].
 
     Arguments:
     - dataset: The dataset to normalize.
-    - min_val: The minimum value of the input data.
-    - max_val: The maximum value of the input data.
+    - vmin: The minimum value of the input data.
+    - vmax: The maximum value of the input data.
 
     Returns:
     - The normalized data scaled to range [0, 1].
     """
+    if vmax == vmin:
+        raise ValueError("vmax and vmin must be different values to avoid division by zero.")
 
     return (dataset - vmin) / (vmax - vmin)
 
@@ -99,12 +102,16 @@ def normalize_samples(datafolder, vmin, vmax):
                 np.save(os.path.join(root, file), norm_data)
 
 
-def load_files(datafolder, num_samples, sample_start_index, total_length):
+def load_files(datafolder, num_samples, sample_start_index, total_length, verbose=True):
     folders = [f for f in os.listdir(datafolder) if os.path.isdir(os.path.join(datafolder, f))]
     folders = np.random.choice(folders, min(num_samples, len(folders)), replace=False)
 
+    progress_iterator = folders
+    if verbose:
+        progress_iterator = tqdm(progress_iterator, desc="Loading samples")
+
     data = []
-    for i, unique_id in enumerate(folders):
+    for i, unique_id in enumerate(progress_iterator):
         files = [f for f in os.listdir(os.path.join(datafolder, unique_id)) if f.endswith('.npy')]
         file_count = len(files)
 

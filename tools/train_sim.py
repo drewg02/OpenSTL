@@ -1,6 +1,8 @@
+import os.path as osp
+
 from openstl.simulation.train import SimulationExperiment
 from openstl.simulation.utils import create_parser, create_dataloaders, generate_configs
-from openstl.utils import default_parser
+from openstl.utils import default_parser, load_config, update_config, setup_multi_processes
 
 
 def main():
@@ -18,13 +20,20 @@ def main():
                                                                    image_height, image_width, args)
 
     config = args.__dict__
-
     config.update(custom_training_config)
-    config.update(custom_model_config)
-    default_values = default_parser()
-    for attribute in default_values.keys():
-        if config[attribute] is None:
-            config[attribute] = default_values[attribute]
+
+    cfg_path = osp.join('./configs', args.dataname, f'{args.method}.py') \
+        if args.config_file is None else args.config_file
+    if cfg_path:
+        config = update_config(config, load_config(cfg_path))
+    else:
+        config.update(custom_model_config)
+        default_values = default_parser()
+        for attribute in default_values.keys():
+            if config[attribute] is None:
+                config[attribute] = default_values[attribute]
+
+    setup_multi_processes(config)
 
     exp = SimulationExperiment(args, dataloaders=(dataloader_train, dataloader_val, dataloader_test))
 

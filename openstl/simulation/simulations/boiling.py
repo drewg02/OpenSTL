@@ -55,4 +55,8 @@ class Boiling(Simulation):
         if save_history:
             history = np.reshape(history, (-1, samples.shape[0], samples.shape[1]))
 
-        return (samples, np.array(history)) if save_history else (samples, None)
+        if save_history:
+            history = np.array(history)
+            return samples, history
+        else:
+            return samples, None
