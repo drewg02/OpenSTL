@@ -40,7 +40,7 @@ class Base_method(object):
         self.scheduler = None
         if self.dist:
             self.rank, self.world_size = get_dist_info()
-            assert self.rank == int(str(device).split(':')[-1])
+            #assert self.rank == int(str(device).split(':')[-1])
         else:
             self.rank, self.world_size = 0, 1
         self.clip_value = self.args.clip_grad
