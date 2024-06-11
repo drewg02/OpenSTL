@@ -22,10 +22,8 @@ def main():
     config = args.__dict__
     config.update(custom_training_config)
 
-    cfg_path = osp.join('./configs', args.dataname, f'{args.method}.py') \
-        if args.config_file is None else args.config_file
-    if cfg_path:
-        config = update_config(config, load_config(cfg_path))
+    if args.config_file:
+        config = update_config(config, load_config(args.config_file))
     else:
         config.update(custom_model_config)
         default_values = default_parser()
