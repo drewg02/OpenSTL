@@ -1,5 +1,3 @@
-import os.path as osp
-
 from openstl.simulation.train import SimulationExperiment
 from openstl.simulation.utils import create_parser, create_dataloaders, generate_configs
 from openstl.utils import default_parser, load_config, update_config, setup_multi_processes

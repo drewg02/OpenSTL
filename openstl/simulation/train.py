@@ -41,10 +41,10 @@ class SimulationExperiment(BaseExperiment):
             assert False, "Distributed training requires GPUs"
 
         if self._use_gpu:
-            device = f'cuda:{self._rank if self.args.dist else 0}'
+            device = f'cuda:{self.args.local_rank if self.args.dist else 0}'
             if self.args.dist:
-                torch.cuda.set_device(self._rank)
-                print_log(f'Use distributed mode with GPUs: local rank={self._rank}')
+                torch.cuda.set_device(self.args.local_rank)
+                print_log(f'Use distributed mode with GPUs: local rank={self.args.local_rankk}')
             else:
                 print_log(f'Use non-distributed mode with GPU: {device}')
         else:
