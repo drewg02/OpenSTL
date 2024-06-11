@@ -44,7 +44,7 @@ class SimulationExperiment(BaseExperiment):
             device = f'cuda:{self.args.local_rank if self.args.dist else 0}'
             if self.args.dist:
                 torch.cuda.set_device(self.args.local_rank)
-                print_log(f'Use distributed mode with GPUs: local rank={self.args.local_rankk}')
+                print_log(f'Use distributed mode with GPUs: local rank={self.args.local_rank}')
             else:
                 print_log(f'Use non-distributed mode with GPU: {device}')
         else:
