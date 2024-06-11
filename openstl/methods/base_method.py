@@ -40,7 +40,7 @@ class Base_method(object):
         self.scheduler = None
         if self.dist:
             self.rank, self.world_size = get_dist_info()
-            assert self.args.local_rank == int(str(device).split(':')[-1])
+            assert self.rank == int(str(device).split(':')[-1])
         else:
             self.rank, self.world_size = 0, 1
         self.clip_value = self.args.clip_grad
@@ -70,7 +70,7 @@ class Base_method(object):
                print('Using native PyTorch AMP. Training in mixed precision (fp16).')
         else:
             print('AMP not enabled. Training in float32.')
-        self.model = NativeDDP(self.model, device_ids=[f'cuda:{self.args.local_rank}'],
+        self.model = NativeDDP(self.model, device_ids=[self.rank],
                                broadcast_buffers=self.args.broadcast_buffers,
                                find_unused_parameters=self.args.find_unused_parameters)
 
