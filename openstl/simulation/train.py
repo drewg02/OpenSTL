@@ -16,7 +16,8 @@ from openstl.core import metric, Recorder, get_priority, hook_maps
 from openstl.methods import method_maps
 from openstl.utils import (set_seed, print_log, check_dir, collect_env,
                            init_dist, init_random_seed,
-                           get_dataset, get_dist_info, weights_to_cpu)
+                           get_dist_info, weights_to_cpu)
+from openstl.simulation.utils import create_dataloaders
 
 try:
     import nni
@@ -158,7 +159,13 @@ class SimulationExperiment(BaseExperiment):
         """Prepare datasets and dataloaders"""
         if dataloaders is None:
             self.train_loader, self.vali_loader, self.test_loader = \
-                get_dataset(self.args.dataname, self.config)
+                create_dataloaders(self.args.datafile_in,
+                                   self.args.pre_seq_length,
+                                   self.args.aft_seq_length,
+                                   self.args.batch_size,
+                                   self.args.val_batch_size,
+                                   self.args.val_batch_size,
+                                   self.args.dist)
         else:
             self.train_loader, self.vali_loader, self.test_loader = dataloaders
 

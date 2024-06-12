@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import pickle
+import numpy as np
 
 from openstl.simulation import SimulationDataset
 from openstl.simulation.simulations import simulations
@@ -159,7 +160,18 @@ def create_dataloaders(file_path, pre_seq_length=10, aft_seq_length=10, batch_si
     return train_loader, val_loader, test_loader
 
 
-def generate_configs(pre_seq_length, aft_seq_length, image_height, image_width, args):
+def generate_configs(args):
+    pre_seq_length = args.pre_seq_length
+    aft_seq_length = args.aft_seq_length
+
+    with open(args.datafile_in, 'r') as f:
+        data = json.load(f)
+
+        key = 'train' if data['train'] else 'test'
+
+        image_height = np.load(data[key]['samples'][0][0]).shape[-2]
+        image_width = np.load(data[key]['samples'][0][0]).shape[-1]
+
     custom_training_config = {
         'pre_seq_length': pre_seq_length,
         'aft_seq_length': aft_seq_length,
