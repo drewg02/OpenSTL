@@ -177,7 +177,7 @@ def generate_configs(args):
         'aft_seq_length': aft_seq_length,
         'total_length': pre_seq_length + aft_seq_length,
         'batch_size': args.batch_size,
-        'val_batch_size': args.batch_size,
+        'val_batch_size': args.val_batch_size,
         'epoch': args.epoch,
         'lr': args.lr,
         'metrics': ['mse', 'mae', 'ssim'],
