@@ -11,9 +11,10 @@ def main():
                                                                            args.aft_seq_length,
                                                                            args.batch_size,
                                                                            args.val_batch_size,
-                                                                           args.val_batch_size)
+                                                                           args.val_batch_size,
+                                                                           args.dist)
 
-    image_height, image_width = next(iter(dataloader_train if dataloader_train else dataloader_test))[0].shape[-2:]
+    image_height, image_width = next(iter(dataloader_train))[0].shape[-2:]
     custom_training_config, custom_model_config = generate_configs(args.pre_seq_length, args.aft_seq_length,
                                                                    image_height, image_width, args)
 

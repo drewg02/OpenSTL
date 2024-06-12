@@ -3,10 +3,9 @@ import json
 import os
 import pickle
 
-from torch.utils.data import DataLoader
-
 from openstl.simulation import SimulationDataset
 from openstl.simulation.simulations import simulations
+from openstl.datasets.utils import create_loader
 
 
 def create_parser():
@@ -135,22 +134,27 @@ def create_parser():
     return parser
 
 
-def create_dataloader(data, pre_seq_length=10, aft_seq_length=10, batch_size=16, shuffle=False):
+def create_dataloader(data, pre_seq_length=10, aft_seq_length=10, batch_size=16, shuffle=False, is_training=False, distributed=False):
     dataset = SimulationDataset(data, pre_seq_length, aft_seq_length)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
+    dataloader = create_loader(dataset, batch_size,
+                             shuffle=shuffle, is_training=is_training,
+                             distributed=distributed, num_workers=4)
+
+    return dataloader
 
 
-def create_dataloaders(file_path, pre_seq_length=10, aft_seq_length=10, batch_size=16, val_batch_size=16,
-                       test_batch_size=16):
+def create_dataloaders(file_path, pre_seq_length=10, aft_seq_length=10, batch_size=16, val_batch_size=4,
+                       test_batch_size=4, distributed=False):
     if not os.path.exists(file_path):
         return None, None, None
 
     with open(file_path, 'r') as f:
         loader = json.load(f)
 
-    train_loader = create_dataloader(loader['train'], pre_seq_length, aft_seq_length, batch_size, True)
-    val_loader = create_dataloader(loader['validation'], pre_seq_length, aft_seq_length, val_batch_size, True)
-    test_loader = create_dataloader(loader['test'], pre_seq_length, aft_seq_length, test_batch_size, True)
+    train_loader = create_dataloader(loader['train'], pre_seq_length, aft_seq_length, batch_size, True, True, distributed)
+    val_loader = create_dataloader(loader['validation'], pre_seq_length, aft_seq_length, val_batch_size, False, False, distributed)
+    test_loader = create_dataloader(loader['test'], pre_seq_length, aft_seq_length, test_batch_size, False, False, distributed)
 
     return train_loader, val_loader, test_loader
 
