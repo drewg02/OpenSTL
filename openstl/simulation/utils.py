@@ -160,7 +160,10 @@ def create_dataloaders(file_path, pre_seq_length=10, aft_seq_length=10, batch_si
     return train_loader, val_loader, test_loader
 
 
-def generate_configs(args):
+def generate_config(args, metrics=None):
+    if not metrics:
+        metrics = ['mse', 'mae', 'ssim']
+
     pre_seq_length = args.pre_seq_length
     aft_seq_length = args.aft_seq_length
 
@@ -169,10 +172,14 @@ def generate_configs(args):
 
         key = 'train' if data['train'] else 'test'
 
-        image_height = np.load(data[key]['samples'][0][0]).shape[-2]
-        image_width = np.load(data[key]['samples'][0][0]).shape[-1]
+        example_sample = np.load(data[key]['samples'][0][0])
+        sample_shape = example_sample.shape
 
-    custom_training_config = {
+        channels = len(sample_shape) > 2 and sample_shape[0] or 1
+        image_height = sample_shape[-2]
+        image_width = sample_shape[-1]
+    
+    training_config = {
         'pre_seq_length': pre_seq_length,
         'aft_seq_length': aft_seq_length,
         'total_length': pre_seq_length + aft_seq_length,
@@ -180,30 +187,14 @@ def generate_configs(args):
         'val_batch_size': args.val_batch_size,
         'epoch': args.epoch,
         'lr': args.lr,
-        'metrics': ['mse', 'mae', 'ssim'],
+        'metrics': metrics,
 
         'ex_name': args.ex_name,
-        'dataname': '2dplate',
-        'in_shape': [pre_seq_length, 1, image_height, image_width],
+        'dataname': 'simulation',
+        'in_shape': [pre_seq_length, channels, image_height, image_width],
     }
 
-    custom_model_config = {
-        'method': 'SimVP',
-        # model
-        'spatio_kernel_enc': 3,
-        'spatio_kernel_dec': 3,
-        # model_type = None  # define `model_type` in args
-        'hid_S': 64,
-        'hid_T': 512,
-        'N_T': 8,
-        'N_S': 4,
-        # training
-        'lr': 1e-3,
-        'drop_path': 0,
-        'sched': 'onecycle'
-    }
-
-    return custom_training_config, custom_model_config
+    return training_config
 
 
 def get_simulation_class(simulation_name):
