@@ -42,6 +42,12 @@ def plot_arrays(arrays, filename, rows=None, cols=None, wspace=10, hspace=10, dp
 
     num_arrays = arrays.shape[0]
     N = arrays.shape[1]
+    M = arrays.shape[2]
+
+    if N < 256 or M < 256:
+        arrays = np.kron(arrays, np.ones((4, 4)))
+        N = arrays.shape[1]
+        M = arrays.shape[2]
 
     if rows is None and cols is None:
         rows = 1
@@ -50,10 +56,6 @@ def plot_arrays(arrays, filename, rows=None, cols=None, wspace=10, hspace=10, dp
         rows = (num_arrays + cols - 1) // cols
     elif cols is None and rows is not None:
         cols = (num_arrays + rows - 1) // rows
-
-    N = N * (4 if N < 256 else 1)
-    wspace = wspace * (4 if N < 256 else 1)
-    hspace = hspace * (4 if N < 256 else 1)
 
     total_width = ((cols * N) + ((cols - 1) * wspace)) / dpi
     total_height = ((rows * N) + ((rows - 1) * hspace)) / dpi
@@ -94,6 +96,9 @@ def plot_arrays(arrays, filename, rows=None, cols=None, wspace=10, hspace=10, dp
 
     for fmt in formats:
         savename = f"{filename}.{fmt}" if not filename.endswith(fmt) else filename
+        dirname = os.path.dirname(savename)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
         plt.savefig(savename, format=fmt, bbox_inches='tight', pad_inches=0)
     plt.close()
 
@@ -175,7 +180,8 @@ def calculate_tsse(actual, forecast):
 
 # Function for plotting with the tsse metric
 def plot_arrays_tsse(trues, preds, filename, cmap='coolwarm'):
-    num_frames, height, width = trues.shape
+    trues_shape = trues.shape
+    num_frames = len(trues_shape) > 2 and trues_shape[0] or 1
     arrays = np.concatenate((trues, preds), axis=0)
 
     texts = []
@@ -209,46 +215,49 @@ def plot_arrays_tsse(trues, preds, filename, cmap='coolwarm'):
 
 # Function for plotting with the ssim metric
 def plot_arrays_ssim(inputs, trues, preds, diff, filename, cmap='coolwarm', diff_cmap='gray', float_fmt='.5f'):
-    num_frames, height, width = inputs.shape
-    arrays = np.concatenate((inputs, trues, preds, diff), axis=0)
+    inputs_shape = inputs.shape
+    num_frames = len(inputs_shape) > 2 and inputs_shape[0] or 1
+
+    arrays = np.stack((inputs, trues, preds, diff), axis=0)
 
     texts = []
     text_positions = []
     cmaps = []
-    for idx in range(num_frames * 4):
-        text = []
-        text_position = []
-        if idx < num_frames:
-            if idx % 10 == 0:
-                text.append("Inputs")
-                text_position.append('left')
+    for idx in range(4):
+        for jdx in range(num_frames):
+            text = []
+            text_position = []
+            if idx == 0:
+                if jdx == 0:
+                    text.append("Inputs")
+                    text_position.append('left')
 
-            cmaps.append(cmap)
-        elif idx < num_frames * 2:
-            if idx % 10 == 0:
-                text.append("Ground Truth")
-                text_position.append('left')
+                cmaps.append(cmap)
+            elif idx == 1:
+                if jdx == 0:
+                    text.append("Ground Truth")
+                    text_position.append('left')
 
-            cmaps.append(cmap)
-        elif idx < num_frames * 3:
-            if idx % 10 == 0:
-                text.append("Prediction")
-                text_position.append('left')
+                cmaps.append(cmap)
+            elif idx == 2:
+                if jdx == 0:
+                    text.append("Prediction")
+                    text_position.append('left')
 
-            cmaps.append(cmap)
-        else:
-            if idx % 10 == 0:
-                text.append("Difference")
-                text_position.append('left')
+                cmaps.append(cmap)
+            else:
+                if jdx == 0:
+                    text.append("Difference")
+                    text_position.append('left')
 
-            ssim_value = ssim(trues[idx - (num_frames * 3)], preds[idx - (num_frames * 3)])
-            text.append(f"SSIM: {ssim_value:>{float_fmt}}")
-            text_position.append('bottom')
+                ssim_value = ssim(trues[idx - (num_frames * 3)], preds[idx - (num_frames * 3)])
+                text.append(f"SSIM: {ssim_value:>{float_fmt}}")
+                text_position.append('bottom')
 
-            cmaps.append(diff_cmap)
+                cmaps.append(diff_cmap)
 
-        texts.append(text)
-        text_positions.append(text_position)
+            texts.append(text)
+            text_positions.append(text_position)
 
     rows = 4
     cols = num_frames
