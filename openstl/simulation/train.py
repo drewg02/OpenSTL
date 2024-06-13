@@ -127,7 +127,7 @@ class SimulationExperiment(BaseExperiment):
 
     def _build_method(self):
         self.steps_per_epoch = len(self.train_loader)
-        self.method = method_maps[self.args.method](self.args, self.device, self.steps_per_epoch)
+        self.method = method_maps[self.args.method](self.args, self.device, self.steps_per_epoch, self.args.metrics)
         self.method.model.eval()
         # setup ddp training
         if self._dist:
@@ -275,7 +275,17 @@ class SimulationExperiment(BaseExperiment):
         time.sleep(1)  # wait for some hooks like loggers to finish
         self.call_hook('after_run')
 
-        print_log(f'Training time: {time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time))}')
+        elapsed_time = time.time() - start_time
+        results['timings'] = {
+            'train_time': elapsed_time,
+        }
+
+        days = elapsed_time // 86400
+        hours = (elapsed_time % 86400) // 3600
+        minutes = (elapsed_time % 3600) // 60
+        seconds = elapsed_time % 60
+
+        print_log(f'Training time: {int(days)} days, {int(hours):02}:{int(minutes):02}:{int(seconds):02}')
 
         if self._rank == 0:
             folder_path = osp.join(self.path, 'saved')

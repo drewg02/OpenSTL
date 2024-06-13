@@ -19,8 +19,8 @@ class TAU(SimVP):
 
     """
 
-    def __init__(self, args, device, steps_per_epoch):
-        SimVP.__init__(self, args, device, steps_per_epoch)
+    def __init__(self, args, device, steps_per_epoch, metric_list=None):
+        SimVP.__init__(self, args, device, steps_per_epoch, metric_list)
         self.model = self._build_model(self.config)
         self.model_optim, self.scheduler, self.by_epoch = self._init_optimizer(steps_per_epoch)
         self.criterion = nn.MSELoss()

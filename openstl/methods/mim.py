@@ -13,8 +13,8 @@ class MIM(PredRNN):
 
     """
 
-    def __init__(self, args, device, steps_per_epoch):
-        PredRNN.__init__(self, args, device, steps_per_epoch)
+    def __init__(self, args, device, steps_per_epoch, metric_list=None):
+        PredRNN.__init__(self, args, device, steps_per_epoch, metric_list)
         assert args.batch_size == args.val_batch_size, f"{args.batch_size} != {args.val_batch_size}"
         self.model = self._build_model(self.args)
         self.model_optim, self.scheduler, self.by_epoch = self._init_optimizer(steps_per_epoch)

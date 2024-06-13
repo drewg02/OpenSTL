@@ -29,7 +29,7 @@ class Base_method(object):
 
     """
 
-    def __init__(self, args, device, steps_per_epoch):
+    def __init__(self, args, device, steps_per_epoch, metric_list=None):
         super(Base_method, self).__init__()
         self.args = args
         self.dist = args.dist
@@ -49,10 +49,11 @@ class Base_method(object):
         self.amp_autocast = suppress  # do nothing
         self.loss_scaler = None
         # setup metrics
-        if 'weather' in self.args.dataname:
-            self.metric_list, self.spatial_norm = ['mse', 'rmse', 'mae'], True
-        else:
-            self.metric_list, self.spatial_norm = ['mse', 'mae'], False
+
+        default_metrics = ['mse', 'rmse', 'mae'] if 'weather' in self.args.dataname else ['mse', 'mae']
+        metric_list = metric_list or default_metrics
+        self.metric_list = metric_list
+        self.spatial_norm = 'weather' in self.args.dataname
 
     def _build_model(self, **kwargs):
         raise NotImplementedError

@@ -17,10 +17,10 @@ class CrevNet(Base_method):
     and Beyond <https://openreview.net/forum?id=B1eY_pVYvB>`_.
     """
 
-    def __init__(self, args, device, steps_per_epoch):
+    def __init__(self, args, device, steps_per_epoch, metric_list=None):
         args.pre_seq_length = args.pre_seq_length - 2
         args.total_length = args.pre_seq_length + args.aft_seq_length
-        Base_method.__init__(self, args, device, steps_per_epoch)
+        Base_method.__init__(self, args, device, steps_per_epoch, metric_list)
         self.model = self._build_model(self.config)
         self._init_optimizer(steps_per_epoch)
         self.criterion = nn.MSELoss()
