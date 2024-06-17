@@ -145,13 +145,16 @@ def create_dataloader(data, pre_seq_length=10, aft_seq_length=10, batch_size=16,
     return dataloader
 
 
-def create_dataloaders(file_path, pre_seq_length=10, aft_seq_length=10, batch_size=16, val_batch_size=4,
+def create_dataloaders(file_path_or_data, pre_seq_length=10, aft_seq_length=10, batch_size=16, val_batch_size=4,
                        test_batch_size=4, distributed=False):
-    if not os.path.exists(file_path):
-        return None, None, None
+    if type(file_path_or_data) == str:
+        if not os.path.exists(file_path_or_data):
+            return None, None, None
 
-    with open(file_path, 'r') as f:
-        loader = json.load(f)
+        with open(file_path_or_data, 'r') as f:
+            loader = json.load(f)
+    else:
+        loader = file_path_or_data
 
     train_loader = create_dataloader(loader['train'], pre_seq_length, aft_seq_length, batch_size, True, True, distributed)
     val_loader = create_dataloader(loader['validation'], pre_seq_length, aft_seq_length, val_batch_size, False, False, distributed)

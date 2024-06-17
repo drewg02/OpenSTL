@@ -40,14 +40,13 @@ def plot_arrays(arrays, filename, rows=None, cols=None, wspace=10, hspace=10, dp
     if len(arrays.shape) == 2:
         arrays = np.expand_dims(arrays, axis=0)
 
-    num_arrays = arrays.shape[0]
-    N = arrays.shape[1]
-    M = arrays.shape[2]
+    num_arrays = arrays.shape[1]
+    N = arrays.shape[2]
+    M = arrays.shape[3]
 
     if N < 256 or M < 256:
         arrays = np.kron(arrays, np.ones((4, 4)))
-        N = arrays.shape[1]
-        M = arrays.shape[2]
+        N = arrays.shape[2]
 
     if rows is None and cols is None:
         rows = 1
@@ -65,28 +64,27 @@ def plot_arrays(arrays, filename, rows=None, cols=None, wspace=10, hspace=10, dp
     axarr = np.array(axarr).reshape(rows, cols)
 
     for idx, ax in enumerate(axarr.flat):
-        if idx < num_arrays:
-            cmap = cmaps[idx] if cmaps and idx < len(cmaps) else 'gray'
-            ax.imshow(arrays[idx], cmap=cmap, vmin=0, vmax=1)
-            if texts and idx < len(texts) and texts[idx]:
-                text_set = texts[idx]
-                text_position_set = text_positions[idx] if text_positions and idx < len(text_positions) else [
-                                                                                                                 'top'] * len(
-                    text_set)
+        cmap = cmaps[idx] if cmaps and idx < len(cmaps) else 'gray'
+        kdx = idx // cols
+        jdx = idx % cols
+        ax.imshow(arrays[kdx][jdx], cmap=cmap, vmin=0, vmax=1)
+        if texts and idx < len(texts) and texts[idx]:
+            text_set = texts[idx]
+            text_position_set = text_positions[idx] if text_positions and idx < len(text_positions) else ['top'] * len(text_set)
 
-                for text, text_position in zip(text_set, text_position_set):
-                    if text_position == 'top':
-                        ax.text(0.5, 1.01, text, transform=ax.transAxes, ha='center', va='bottom', size=font_size,
-                                linespacing=line_height)
-                    elif text_position == 'bottom':
-                        ax.text(0.5, -0.01, text, transform=ax.transAxes, ha='center', va='top', size=font_size,
-                                linespacing=line_height)
-                    elif text_position == 'left':
-                        ax.text(-0.01, 0.5, text, transform=ax.transAxes, ha='right', va='center', rotation=90,
-                                size=font_size, linespacing=line_height)
-                    elif text_position == 'right':
-                        ax.text(1.01, 0.5, text, transform=ax.transAxes, ha='left', va='center', rotation=90,
-                                size=font_size, linespacing=line_height)
+            for text, text_position in zip(text_set, text_position_set):
+                if text_position == 'top':
+                    ax.text(0.5, 1.01, text, transform=ax.transAxes, ha='center', va='bottom', size=font_size,
+                            linespacing=line_height)
+                elif text_position == 'bottom':
+                    ax.text(0.5, -0.01, text, transform=ax.transAxes, ha='center', va='top', size=font_size,
+                            linespacing=line_height)
+                elif text_position == 'left':
+                    ax.text(-0.01, 0.5, text, transform=ax.transAxes, ha='right', va='center', rotation=90,
+                            size=font_size, linespacing=line_height)
+                elif text_position == 'right':
+                    ax.text(1.01, 0.5, text, transform=ax.transAxes, ha='left', va='center', rotation=90,
+                            size=font_size, linespacing=line_height)
         ax.axis('off')
 
     plt.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=wspace / N, hspace=hspace / N)
@@ -250,7 +248,7 @@ def plot_arrays_ssim(inputs, trues, preds, diff, filename, cmap='coolwarm', diff
                     text.append("Difference")
                     text_position.append('left')
 
-                ssim_value = ssim(trues[idx - (num_frames * 3)], preds[idx - (num_frames * 3)])
+                ssim_value = ssim(trues[jdx], preds[jdx])
                 text.append(f"SSIM: {ssim_value:>{float_fmt}}")
                 text_position.append('bottom')
 

@@ -347,6 +347,6 @@ class SimulationExperiment(BaseExperiment):
                         os.makedirs(save_path)
 
                     for j in range(len(line)):
-                        np.save(osp.join(save_path, f'{j}.npy'), line[j])
+                        np.save(osp.join(save_path, f'{j}.npy'), line[j].squeeze(axis=0))
 
         return eval_res['mse']
