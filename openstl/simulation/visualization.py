@@ -37,8 +37,8 @@ def plot_arrays(arrays, filename, rows=None, cols=None, wspace=10, hspace=10, dp
     if formats is None:
         formats = ['png']
 
-    if len(arrays.shape) == 2:
-        arrays = np.expand_dims(arrays, axis=0)
+    if len(arrays.shape) == 3:
+        arrays = np.reshape(arrays, (arrays.shape[0], 1, arrays.shape[1], arrays.shape[2]))
 
     num_arrays = arrays.shape[1]
     N = arrays.shape[2]
@@ -213,22 +213,26 @@ def plot_arrays_tsse(trues, preds, filename, cmap='coolwarm'):
 
 # Function for plotting with the ssim metric
 def plot_arrays_ssim(inputs, trues, preds, diff, filename, cmap='coolwarm', diff_cmap='gray', float_fmt='.5f'):
+    rows = 4
     inputs_shape = inputs.shape
-    num_frames = len(inputs_shape) > 2 and inputs_shape[0] or 1
+    cols = len(inputs_shape) > 2 and inputs_shape[0] or 1
 
     arrays = np.stack((inputs, trues, preds, diff), axis=0)
 
     texts = []
     text_positions = []
     cmaps = []
-    for idx in range(4):
-        for jdx in range(num_frames):
+    for idx in range(rows):
+        for jdx in range(cols):
             text = []
             text_position = []
             if idx == 0:
                 if jdx == 0:
                     text.append("Inputs")
                     text_position.append('left')
+
+                text.append(f"i = {jdx}")
+                text_position.append('top')
 
                 cmaps.append(cmap)
             elif idx == 1:
@@ -256,9 +260,6 @@ def plot_arrays_ssim(inputs, trues, preds, diff, filename, cmap='coolwarm', diff
 
             texts.append(text)
             text_positions.append(text_position)
-
-    rows = 4
-    cols = num_frames
 
     plot_arrays(arrays, filename, rows=rows, cols=cols, texts=texts,
                 text_positions=text_positions, font_size=18, cmaps=cmaps)
