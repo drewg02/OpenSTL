@@ -131,6 +131,8 @@ def create_parser():
     # Simulation parameters
     parser.add_argument('--datafile_in', type=str, required=True,
                         help='Specifies the input data file path.')
+    parser.add_argument('--saved_path', type=str, default=None,
+                        help='Specifies the path to save the results.')
 
     return parser
 

@@ -48,7 +48,7 @@ def main():
         mse = exp.inference()
     else:
         print('>' * 35 + f' testing {args.ex_name}  ' + '<' * 35)
-        mse = exp.test()
+        mse = exp.test(save_dir=args.saved_path)
 
     if rank == 0 and has_nni and mse is not None:
         nni.report_final_result(mse)

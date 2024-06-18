@@ -294,7 +294,7 @@ class SimulationExperiment(BaseExperiment):
             for np_data in results.keys():
                 np.save(osp.join(folder_path, np_data + '.npy'), results[np_data])
 
-    def test(self, save_dir=None, model_path=None):
+    def test(self, model_path=None, save_dir=None):
         """A testing loop of STL methods with an optional model path for loading."""
         if model_path:
             # Check if the path is a state_dict or a full checkpoint and load accordingly
@@ -329,24 +329,44 @@ class SimulationExperiment(BaseExperiment):
 
         if self._rank == 0:
             print_log(eval_log)
-            folder_path = save_dir if save_dir else osp.join(self.path, 'saved')
-            check_dir(folder_path)
+            self._save_results(results, save_dir)
 
+        return eval_res['mse']
+
+
+    def inference(self, model_path=None, save_dir=None):
+        """A inference loop of STL methods"""
+        best_model_path = osp.join(self.path, 'checkpoint.pth')
+        self._load_from_state_dict(torch.load(best_model_path))
+
+        self.call_hook('before_val_epoch')
+        results = self.method.test_one_epoch(self, self.test_loader)
+        self.call_hook('after_val_epoch')
+
+        if self._rank == 0:
+            self._save_results(results, save_dir)
+
+        return None
+
+
+    def _save_results(self, results, save_dir=None):
+        folder_path = save_dir if save_dir else osp.join(self.path, 'saved')
+        check_dir(folder_path)
+
+        if results['metrics']:
             for np_data in ['metrics']:
                 np.save(osp.join(folder_path, np_data + '.npy'), results[np_data])
 
-            for result_data in ['inputs', 'trues', 'preds']:
-                data = results[result_data]
-                for i in range(len(data)):
-                    line = data[i]
+        for result_data in ['inputs', 'trues', 'preds']:
+            data = results[result_data]
+            for i in range(len(data)):
+                line = data[i]
 
-                    unique_id = self.test_loader.dataset.data['samples'][i][0].split('/')[-2]
+                unique_id = self.test_loader.dataset.data['samples'][i][0].split('/')[-2]
 
-                    save_path = osp.join(folder_path, result_data, unique_id)
-                    if not osp.exists(save_path):
-                        os.makedirs(save_path)
+                save_path = osp.join(folder_path, result_data, unique_id)
+                if not osp.exists(save_path):
+                    os.makedirs(save_path)
 
-                    for j in range(len(line)):
-                        np.save(osp.join(save_path, f'{j}.npy'), line[j].squeeze(axis=0))
-
-        return eval_res['mse']
+                for j in range(len(line)):
+                    np.save(osp.join(save_path, f'{j}.npy'), line[j].squeeze(axis=0))

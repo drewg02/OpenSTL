@@ -58,7 +58,7 @@ def main():
             mse = exp.inference()
         else:
             print('>' * 35 + f' testing {args.ex_name} i{j} ' + '<' * 35)
-            mse = exp.test()
+            mse = exp.test(save_dir=args.saved_path)
 
         final_mse.append(mse)
 
