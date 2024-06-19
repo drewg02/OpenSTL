@@ -17,7 +17,7 @@ class SimulationDataset(Dataset):
     def __getitem__(self, idx):
         sample = self.data['samples'][idx]
 
-        data = [np.load(file) for file in sample]
+        data = [np.load(file) if isinstance(file, str) else np.array(file) for file in sample]
         data = np.stack(data)
 
         x_sequence = data[:self.pre_seq_length]
