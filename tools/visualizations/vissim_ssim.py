@@ -5,7 +5,7 @@ import numpy as np
 
 from openstl.simulation.simulations import simulations
 from openstl.simulation.utils import get_simulation_class
-from openstl.simulation.visualization import load_data, plot_arrays_ssim
+from openstl.simulation.visualization import pick_data, load_data, plot_arrays_ssim
 
 
 def main():
@@ -14,6 +14,11 @@ def main():
 
     parser.add_argument('--simulation', type=str, choices=[simulation.__name__ for simulation in simulations],
                         help='Determines the simulation type.', required=True)
+
+    parser.add_argument('--unique_ids', type=str, nargs='+',
+                        help='Specifies the unique ids of the experiments to visualize.')
+    parser.add_argument('--limit', type=int,
+                        help='Specifies the number of experiments to visualize.', default=25)
 
     parser.add_argument('--datafolder', type=str, required=True,
                         help='Specifies the input data file path.')
@@ -26,9 +31,14 @@ def main():
     if not simulation_class:
         raise ValueError(f"Invalid simulation: {args.simulation}")
 
-    inputs = load_data(os.path.join(args.datafolder, 'inputs'), 25)
-    trues = load_data(os.path.join(args.datafolder, 'trues'), 25)
-    preds = load_data(os.path.join(args.datafolder, 'preds'), 25)
+    if args.unique_ids:
+        unique_ids = args.unique_ids
+    else:
+        unique_ids = pick_data(os.path.join(args.datafolder, 'inputs'), args.limit)
+
+    inputs = load_data(os.path.join(args.datafolder, 'inputs'), unique_ids)
+    trues = load_data(os.path.join(args.datafolder, 'trues'), unique_ids)
+    preds = load_data(os.path.join(args.datafolder, 'preds'), unique_ids)
     diff = np.abs(trues - preds)
 
     for i in range(min(inputs.shape[0], trues.shape[0], preds.shape[0], 25)):

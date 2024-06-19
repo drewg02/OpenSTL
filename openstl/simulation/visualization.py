@@ -8,14 +8,14 @@ from tqdm import tqdm
 from openstl.simulation.utils import get_simulation_class
 
 
-def load_data(datafolder, limit=100):
+def pick_data(datafolder, limit=100):
     folders = [f for f in os.listdir(datafolder) if os.path.isdir(os.path.join(datafolder, f))]
+    return folders[:limit]
 
+
+def load_data(datafolder, unique_ids):
     dataset = []
-    for unique_id in folders:
-        if len(dataset) >= limit:
-            break
-
+    for unique_id in unique_ids:
         files = [f for f in os.listdir(f'{datafolder}/{unique_id}') if f.endswith('.npy')]
         if len(files) < 1:
             continue
