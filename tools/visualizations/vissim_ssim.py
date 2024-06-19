@@ -41,7 +41,9 @@ def main():
     preds = load_data(os.path.join(args.datafolder, 'preds'), unique_ids)
     diff = np.abs(trues - preds)
 
-    for i in range(min(inputs.shape[0], trues.shape[0], preds.shape[0], 25)):
+    assert len(inputs) == len(trues) == len(preds) == len(diff) == len(unique_ids), "Data length mismatch."
+
+    for i in range(len(unique_ids)):
         filename = os.path.join(args.save_path, f'{simulation_class.__name__.lower()}_ssim_{i}.png')
         plot_arrays_ssim(inputs[i], trues[i], preds[i], diff[i], filename, cmap=simulation_class.cmap,
                          diff_cmap=simulation_class.diff_cmap)
