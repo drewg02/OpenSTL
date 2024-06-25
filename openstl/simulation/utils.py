@@ -175,7 +175,7 @@ def generate_config(args, metrics=None):
     with open(args.datafile_in, 'r') as f:
         data = json.load(f)
 
-        key = 'train' if data['train'] else 'test'
+        key = 'train' if data.get('train') else 'test'
 
         example_sample = np.load(data[key]['samples'][0][0])
         sample_shape = example_sample.shape

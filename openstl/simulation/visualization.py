@@ -1,5 +1,8 @@
 import os
+import math
 
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
@@ -40,13 +43,16 @@ def plot_arrays(arrays, filename, rows=None, cols=None, wspace=10, hspace=10, dp
     if len(arrays.shape) == 3:
         arrays = np.reshape(arrays, (arrays.shape[0], 1, arrays.shape[1], arrays.shape[2]))
 
-    num_arrays = arrays.shape[1]
+    num_arrays = arrays.shape[0]
     N = arrays.shape[2]
     M = arrays.shape[3]
 
     if N < 256 or M < 256:
-        arrays = np.kron(arrays, np.ones((4, 4)))
+        X = N if N < 256 else M
+        x = math.ceil(256 / X)
+        arrays = np.kron(arrays, np.ones((x, x)))
         N = arrays.shape[2]
+        M = arrays.shape[3]
 
     if rows is None and cols is None:
         rows = 1
@@ -55,6 +61,9 @@ def plot_arrays(arrays, filename, rows=None, cols=None, wspace=10, hspace=10, dp
         rows = (num_arrays + cols - 1) // cols
     elif cols is None and rows is not None:
         cols = (num_arrays + rows - 1) // rows
+
+    # reshape
+    arrays = np.reshape(arrays, (rows, cols, N, M))
 
     total_width = ((cols * N) + ((cols - 1) * wspace)) / dpi
     total_height = ((rows * N) + ((rows - 1) * hspace)) / dpi
@@ -140,9 +149,11 @@ def save_visualization(datafolder, simulation_class, start_frame_index=0,
 
                 plot_arrays(data, out_path, cmaps=[sim.cmap])
         else:
+            rang = range(start_frame_index, end_frame_index if end_frame_index else len(files))
             data = []
-            for i in range(start_frame_index, end_frame_index if end_frame_index else len(files)):
-                data.append(np.load(f'{datafolder}/{unique_id}/{i}.npy'))
+            for i in rang:
+                single = np.load(f'{datafolder}/{unique_id}/{i}.npy')
+                data.append(single)
 
             data = np.array(data)
             data = np.squeeze(data)

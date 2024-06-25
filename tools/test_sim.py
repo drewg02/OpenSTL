@@ -3,7 +3,7 @@
 import warnings
 warnings.filterwarnings('ignore')
 
-from openstl.simulation.train import SimulationExperiment
+from openstl.simulation import SimulationExperiment
 from openstl.simulation.utils import create_parser, generate_config
 from openstl.utils import (default_parser, get_dist_info, load_config,
                            setup_multi_processes, update_config)
@@ -45,13 +45,13 @@ def main():
 
     if config['inference'] and not config['test']:
         print('>' * 35 + f' inferencing {args.ex_name}  ' + '<' * 35)
-        mse = exp.inference()
+        eval_res, _ = exp.inference()
     else:
         print('>' * 35 + f' testing {args.ex_name}  ' + '<' * 35)
-        mse = exp.test(save_dir=args.saved_path)
+        eval_res, _ = exp.test(save_dir=args.saved_path)
 
-    if rank == 0 and has_nni and mse is not None:
-        nni.report_final_result(mse)
+    if rank == 0 and has_nni and 'mse' in eval_res:
+        nni.report_final_result(eval_res['mse'])
 
 if __name__ == '__main__':
     main()
