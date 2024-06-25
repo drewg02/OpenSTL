@@ -31,14 +31,8 @@ if __name__ == '__main__':
     if args.config_file is None:
         args.config_file = osp.join('./configs', args.dataname, f'{args.method}.py')
 
-    loaded_cfg = load_config(args.config_file)
-    config = update_config(config, loaded_cfg,
-                           exclude_keys=['method', 'batch_size', 'val_batch_size',
-                                         'drop_path', 'warmup_epoch'])
-    default_values = default_parser()
-    for attribute in default_values.keys():
-        if config[attribute] is None:
-            config[attribute] = default_values[attribute]
+    config = update_config(config, load_config(args.config_file),
+                           exclude_keys=['method'])
 
     # set multi-process settings
     setup_multi_processes(config)

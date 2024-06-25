@@ -29,7 +29,7 @@ def main():
 
     assert args.config_file is not None, "Config file is required for testing"
     config = update_config(config, load_config(args.config_file),
-                           exclude_keys=['method', 'batch_size', 'val_batch_size'])
+                           exclude_keys=['method'])
     default_values = default_parser()
     for attribute in default_values.keys():
         if config[attribute] is None:
