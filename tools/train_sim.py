@@ -4,7 +4,7 @@ import os.path as osp
 import warnings
 warnings.filterwarnings('ignore')
 
-from openstl.simulation.train import SimulationExperiment
+from openstl.simulation import SimulationExperiment
 from openstl.simulation.utils import create_parser, generate_config
 from openstl.utils import (default_parser, get_dist_info, load_config,
                            setup_multi_processes, update_config)
@@ -30,18 +30,15 @@ if __name__ == '__main__':
 
     if args.config_file is None:
         args.config_file = osp.join('./configs', args.dataname, f'{args.method}.py')
-    if args.overwrite:
-        config = update_config(config, load_config(args.config_file),
-                               exclude_keys=['method'])
-    else:
-        loaded_cfg = load_config(args.config_file)
-        config = update_config(config, loaded_cfg,
-                               exclude_keys=['method', 'batch_size', 'val_batch_size',
-                                             'drop_path', 'warmup_epoch'])
-        default_values = default_parser()
-        for attribute in default_values.keys():
-            if config[attribute] is None:
-                config[attribute] = default_values[attribute]
+
+    loaded_cfg = load_config(args.config_file)
+    config = update_config(config, loaded_cfg,
+                           exclude_keys=['method', 'batch_size', 'val_batch_size',
+                                         'drop_path', 'warmup_epoch'])
+    default_values = default_parser()
+    for attribute in default_values.keys():
+        if config[attribute] is None:
+            config[attribute] = default_values[attribute]
 
     # set multi-process settings
     setup_multi_processes(config)
@@ -53,7 +50,7 @@ if __name__ == '__main__':
 
     if rank == 0:
         print('>' * 35 + f' testing {args.ex_name}  ' + '<' * 35)
-    mse = exp.test()
+    eval_res, _ = exp.test()
 
-    if rank == 0 and has_nni:
-        nni.report_final_result(mse)
+    if rank == 0 and has_nni and 'mse' in eval_res:
+        nni.report_final_result(eval_res['mse'])
