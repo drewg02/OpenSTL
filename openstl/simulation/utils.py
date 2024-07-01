@@ -158,9 +158,13 @@ def create_dataloaders(file_path_or_data, pre_seq_length=10, aft_seq_length=10, 
     else:
         loader = file_path_or_data
 
-    train_loader = create_dataloader(loader['train'], pre_seq_length, aft_seq_length, batch_size, True, True, distributed)
-    val_loader = create_dataloader(loader['validation'], pre_seq_length, aft_seq_length, val_batch_size, False, False, distributed)
-    test_loader = create_dataloader(loader['test'], pre_seq_length, aft_seq_length, test_batch_size, False, False, distributed)
+    train_loader, val_loader, test_loader = None, None, None
+    if 'train' in loader:
+        train_loader = create_dataloader(loader['train'], pre_seq_length, aft_seq_length, batch_size, True, True, distributed)
+    if 'validation' in loader:
+        val_loader = create_dataloader(loader['validation'], pre_seq_length, aft_seq_length, val_batch_size, False, False, distributed)
+    if 'test' in loader:
+        test_loader = create_dataloader(loader['test'], pre_seq_length, aft_seq_length, test_batch_size, False, False, distributed)
 
     return train_loader, val_loader, test_loader
 

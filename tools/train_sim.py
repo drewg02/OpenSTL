@@ -6,8 +6,9 @@ warnings.filterwarnings('ignore')
 
 from openstl.simulation import SimulationExperiment
 from openstl.simulation.utils import create_parser, generate_config
-from openstl.utils import (default_parser, get_dist_info, load_config,
+from openstl.utils import (get_dist_info, load_config,
                            setup_multi_processes, update_config)
+from openstl.simulation.experiment_recorder import generate_unique_id
 
 try:
     import nni
@@ -33,6 +34,9 @@ if __name__ == '__main__':
 
     config = update_config(config, load_config(args.config_file),
                            exclude_keys=['method'])
+
+    if not config.get('ex_name'):
+        config['ex_name'] = generate_unique_id(config)
 
     # set multi-process settings
     setup_multi_processes(config)

@@ -87,7 +87,14 @@ class SimulationExperiment(BaseExperiment):
         sv_param = osp.join(self.path, 'model_param.json')
         if self._rank == 0:
             with open(sv_param, 'w') as file_obj:
-                json.dump(self.args.__dict__, file_obj)
+                def is_json_serializable(value):
+                    try:
+                        json.dumps(value)
+                        return True
+                    except (TypeError, OverflowError):
+                        return False
+
+                json.dump({k: v for k, v in self.args.__dict__.items() if is_json_serializable(v)}, file_obj)
 
             for handler in logging.root.handlers[:]:
                 logging.root.removeHandler(handler)
@@ -167,7 +174,10 @@ class SimulationExperiment(BaseExperiment):
                                    self.args.val_batch_size,
                                    self.args.dist)
         else:
-            self.train_loader, self.vali_loader, self.test_loader = dataloaders
+            if type(dataloaders) is object:
+                self.train_loader, self.vali_loader, self.test_loader = dataloaders()
+            else:
+                self.train_loader, self.vali_loader, self.test_loader = dataloaders
 
         if self.vali_loader is None:
             self.vali_loader = self.test_loader
@@ -356,9 +366,8 @@ class SimulationExperiment(BaseExperiment):
         folder_path = save_dir if save_dir else osp.join(self.path, 'saved')
         check_dir(folder_path)
 
-        if 'metrcis' in results:
-            for np_data in ['metrics']:
-                np.save(osp.join(folder_path, np_data + '.npy'), results[np_data])
+        if 'metrics' in results:
+            np.save(osp.join(folder_path, 'metrics.npy'), results['metrics'])
 
         for result_data in ['inputs', 'trues', 'preds']:
             assert result_data in results, f"Result data {result_data} not found in results"

@@ -152,8 +152,8 @@ def save_visualization(datafolder, simulation_class, start_frame_index=0,
             rang = range(start_frame_index, end_frame_index if end_frame_index else len(files))
             data = []
             for i in rang:
-                single = np.load(f'{datafolder}/{unique_id}/{i}.npy')
-                data.append(single)
+                single_img = np.load(f'{datafolder}/{unique_id}/{i}.npy')
+                data.append(single_img)
 
             data = np.array(data)
             data = np.squeeze(data)
