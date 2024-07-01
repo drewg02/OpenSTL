@@ -20,8 +20,8 @@ config_file_re = re.compile(r'config_file:\s*(.*?)\s*\t')
 epoch_re = re.compile(r'epoch:\s*(\d+)\s*\t')
 in_shape_re = re.compile(r'in_shape:\s*\[(.*?)\]')
 
-training_length_re = re.compile(r'train loss: \d+\.\d+ \| data time: \d+\.\d+: 100%\|██████████\| \d+/\d+ \[(\d+):(\d+)<\d+:\d+,  \d+\.\d+it/s\]')
 training_info_re = re.compile(r'Epoch: (\d+), Steps: (\d+) \| Lr: ([\d.]+) \| Train Loss: ([\d.]+) \| Vali Loss: ([\d.]+)')
+training_length_re = re.compile(r'100%\|██████████\| \d+/\d+ \[(\d+):(\d+)<\d+:\d+,  \d+\.\d+(it/s|s/it)\]\n\[')
 # Adjusted validation metrics regex pattern to handle different formats
 validation_metrics_re = re.compile(r'\[>{7,}\] \d+/\d+, [\d.]+ task/s, elapsed: (\d+)s, ETA:.*?mse:([\d.]+), mae:([\d.]+), ssim:([\d.]+)', re.MULTILINE)
 training_time_re = re.compile(r'Training time: (\d+) days, (\d+):(\d+):(\d+)')
@@ -100,7 +100,10 @@ def parse_log(log_file):
     training_length_matches = list(re.finditer(training_length_re, log_content))
     validation_metrics_matches = list(re.finditer(validation_metrics_re, log_content))
 
-    if len(training_metrics_matches) != training_length_matches != len(validation_metrics_matches) - 1:
+    if len(training_metrics_matches) != len(training_length_matches) != len(validation_metrics_matches) - 1:
+        print(len(training_metrics_matches))
+        print(len(training_length_matches))
+        print(len(validation_metrics_matches))
         print("Mismatch between the number of training and validation metric matches.")
         raise ValueError("Log file does not contain matching training and validation information.")
 
@@ -174,7 +177,8 @@ def parse_log(log_file):
         csv_line[f'epoch_{epoch_num}_lr'] = data['lr']
         csv_line[f'epoch_{epoch_num}_train_loss'] = data['train_loss']
         csv_line[f'epoch_{epoch_num}_vali_loss'] = data['vali_loss']
-        csv_line[f'epoch_{epoch_num}_elapsed'] = data['elapsed']
+        csv_line[f'epoch_{epoch_num}_train_seconds'] = data['train_seconds']
+        csv_line[f'epoch_{epoch_num}_val_seconds'] = data['val_seconds']
         csv_line[f'epoch_{epoch_num}_mse'] = data['mse']
         csv_line[f'epoch_{epoch_num}_mae'] = data['mae']
         csv_line[f'epoch_{epoch_num}_ssim'] = data['ssim']
