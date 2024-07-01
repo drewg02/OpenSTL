@@ -131,6 +131,8 @@ class SimulationExperiment(BaseExperiment):
         if self.args.resume_from is not None:
             self._load(name=self.args.resume_from)
         self.call_hook('before_run')
+        if self._rank == 0 and self._dist:
+            print(f'Distributed world_size={self._world_size}')
 
     def _build_method(self):
         self.steps_per_epoch = len(self.train_loader)
