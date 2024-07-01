@@ -283,9 +283,14 @@ def init_random_seed(seed=None, device='cuda'):
 
 def _init_dist_pytorch(backend: str, **kwargs) -> None:
     # TODO: use local_rank instead of rank % num_gpus
-    rank = int(os.environ['RANK'])
-    num_gpus = torch.cuda.device_count()
-    torch.cuda.set_device(rank % num_gpus)
+    # rank = int(os.environ['RANK'])
+    # num_gpus = torch.cuda.device_count()
+    # print(rank)
+    # print(num_gpus)
+    # torch.cuda.set_device(rank % num_gpus)
+    local_rank = int(os.environ['LOCAL_RANK'])
+    print(local_rank)
+    torch.cuda.set_device(local_rank)
     dist.init_process_group(backend=backend, **kwargs)
 
 
