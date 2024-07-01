@@ -9,16 +9,77 @@ experiment_re = re.compile(r'---\[ Experiment: (.*) \]---')
 world_size_re = re.compile(r'Distributed world_size=(\d+)')
 rank_pattern_re = re.compile(r'Use distributed mode with GPUs: local rank=\d+')
 config_re = re.compile(r'loading config from (.*) \.\.\.')
-ex_name_re = re.compile(r'ex_name:\s*(.*?)\s*\t')
-seed_re = re.compile(r'seed:\s*(\d+)\s*\t')
-batch_size_re = re.compile(r'batch_size:\s*(\d+)\s*\t')
-val_batch_size_re = re.compile(r'val_batch_size:\s*(\d+)\s*\t')
-pre_seq_length_re = re.compile(r'pre_seq_length:\s*(\d+)\s*\t')
-aft_seq_length_re = re.compile(r'aft_seq_length:\s*(\d+)\s*\t')
-method_re = re.compile(r'method:\s*(\w+)\s*\t')
-config_file_re = re.compile(r'config_file:\s*(.*?)\s*\t')
-epoch_re = re.compile(r'epoch:\s*(\d+)\s*\t')
-in_shape_re = re.compile(r'in_shape:\s*\[(.*?)\]')
+device_re = re.compile(r'device:\s*(.*)')
+dist_re = re.compile(r'dist:\s*(True|False)')
+display_step_re = re.compile(r'display_step:\s*(\d+)')
+res_dir_re = re.compile(r'res_dir:\s*(.*)')
+ex_name_re = re.compile(r'ex_name:\s*(.*)')
+use_gpu_re = re.compile(r'use_gpu:\s*(True|False)')
+fp16_re = re.compile(r'fp16:\s*(True|False)')
+torchscript_re = re.compile(r'torchscript:\s*(True|False)')
+seed_re = re.compile(r'seed:\s*(\d+)')
+diff_seed_re = re.compile(r'diff_seed:\s*(True|False)')
+fps_re = re.compile(r'fps:\s*(True|False)')
+empty_cache_re = re.compile(r'empty_cache:\s*(True|False)')
+find_unused_parameters_re = re.compile(r'find_unused_parameters:\s*(True|False)')
+broadcast_buffers_re = re.compile(r'broadcast_buffers:\s*(True|False)')
+resume_from_re = re.compile(r'resume_from:\s*(.*)')
+auto_resume_re = re.compile(r'auto_resume:\s*(True|False)')
+test_re = re.compile(r'test:\s*(True|False)')
+inference_re = re.compile(r'inference:\s*(True|False)')
+deterministic_re = re.compile(r'deterministic:\s*(True|False)')
+launcher_re = re.compile(r'launcher:\s*(.*)')
+local_rank_re = re.compile(r'local_rank:\s*(\d+)')
+port_re = re.compile(r'port:\s*(\d+)')
+batch_size_re = re.compile(r'batch_size:\s*(\d+)')
+val_batch_size_re = re.compile(r'val_batch_size:\s*(\d+)')
+num_workers_re = re.compile(r'num_workers:\s*(\d+)')
+data_root_re = re.compile(r'data_root:\s*(.*)')
+dataname_re = re.compile(r'dataname:\s*(.*)')
+pre_seq_length_re = re.compile(r'pre_seq_length:\s*(\d+)')
+aft_seq_length_re = re.compile(r'aft_seq_length:\s*(\d+)')
+total_length_re = re.compile(r'total_length:\s*(\d+)')
+use_augment_re = re.compile(r'use_augment:\s*(True|False)')
+use_prefetcher_re = re.compile(r'use_prefetcher:\s*(True|False)')
+drop_last_re = re.compile(r'drop_last:\s*(True|False)')
+method_re = re.compile(r'method:\s*(.*)')
+config_file_re = re.compile(r'config_file:\s*(.*)')
+model_type_re = re.compile(r'model_type:\s*(.*)')
+drop_re = re.compile(r'drop:\s*(\d+\.\d+)')
+drop_path_re = re.compile(r'drop_path:\s*(\d+)')
+overwrite_re = re.compile(r'overwrite:\s*(True|False)')
+epoch_re = re.compile(r'epoch:\s*(\d+)')
+checkpoint_interval_re = re.compile(r'checkpoint_interval:\s*(.*)')
+log_step_re = re.compile(r'log_step:\s*(\d+)')
+opt_re = re.compile(r'opt:\s*(.*)')
+opt_eps_re = re.compile(r'opt_eps:\s*(.*)')
+opt_betas_re = re.compile(r'opt_betas:\s*(.*)')
+momentum_re = re.compile(r'momentum:\s*(\d+\.\d+)')
+weight_decay_re = re.compile(r'weight_decay:\s*(\d+\.\d+)')
+clip_grad_re = re.compile(r'clip_grad:\s*(.*)')
+clip_mode_re = re.compile(r'clip_mode:\s*(.*)')
+early_stop_epoch_re = re.compile(r'early_stop_epoch:\s*(.*)')
+no_display_method_info_re = re.compile(r'no_display_method_info:\s*(True|False)')
+sched_re = re.compile(r'sched:\s*(.*)')
+lr_re = re.compile(r'lr:\s*(\d+\.\d+)')
+lr_k_decay_re = re.compile(r'lr_k_decay:\s*(\d+\.\d+)')
+warmup_lr_re = re.compile(r'warmup_lr:\s*(\d+e-\d+)')
+min_lr_re = re.compile(r'min_lr:\s*(\d+e-\d+)')
+final_div_factor_re = re.compile(r'final_div_factor:\s*(\d+\.\d+)')
+warmup_epoch_re = re.compile(r'warmup_epoch:\s*(\d+)')
+decay_epoch_re = re.compile(r'decay_epoch:\s*(\d+)')
+decay_rate_re = re.compile(r'decay_rate:\s*(\d+\.\d+)')
+filter_bias_and_bn_re = re.compile(r'filter_bias_and_bn:\s*(True|False)')
+datafile_in_re = re.compile(r'datafile_in:\s*(.*)')
+saved_path_re = re.compile(r'saved_path:\s*(.*)')
+metrics_re = re.compile(r'metrics:\s*\[(.*)\]')
+in_shape_re = re.compile(r'in_shape:\s*\[(.*)\]')
+spatio_kernel_enc_re = re.compile(r'spatio_kernel_enc:\s*(\d+)')
+spatio_kernel_dec_re = re.compile(r'spatio_kernel_dec:\s*(\d+)')
+hid_S_re = re.compile(r'hid_S:\s*(\d+)')
+hid_T_re = re.compile(r'hid_T:\s*(\d+)')
+N_T_re = re.compile(r'N_T:\s*(\d+)')
+N_S_re = re.compile(r'N_S:\s*(\d+)')
 
 training_info_re = re.compile(
     r'Epoch: (\d+), Steps: (\d+) \| Lr: ([\d.]+) \| Train Loss: ([\d.]+) \| Vali Loss: ([\d.]+)')
@@ -86,16 +147,6 @@ def parse_log(log_file):
     hostname = hostname_match.group(1)
     experiment = experiment_match.group(1)
     world_size = world_size_match.group(1) if world_size_match else 1
-    ex_name = ex_name_match.group(1)
-    seed = int(seed_match.group(1))
-    batch_size = int(batch_size_match.group(1))
-    val_batch_size = int(val_batch_size_match.group(1))
-    pre_seq_length = int(pre_seq_length_match.group(1))
-    aft_seq_length = int(aft_seq_length_match.group(1))
-    method = method_match.group(1)
-    config_file = config_file_match.group(1)
-    epoch = int(epoch_match.group(1))
-    in_shape = in_shape_match.group(1)
 
     training_epochs = {}
     training_metrics_matches = list(re.finditer(training_info_re, log_content))
@@ -155,22 +206,83 @@ def parse_log(log_file):
         'hostname': hostname,
         'experiment': experiment,
         'world_size': world_size,
-        'ex_name': ex_name,
-        'seed': seed,
-        'batch_size': batch_size,
-        'val_batch_size': val_batch_size,
-        'pre_seq_length': pre_seq_length,
-        'aft_seq_length': aft_seq_length,
-        'method': method,
-        'config_file': config_file,
-        'epoch': epoch,
-        'in_shape': in_shape,
         'training_time_seconds': training_time_seconds,
         'test_time': test_time,
         'test_mse': test_mse,
         'test_mae': test_mae,
         'test_ssim': test_ssim,
-        'num_gpus': num_gpus
+        'num_gpus': num_gpus,
+        'device': device_re.search(log_content).group(1),
+        'dist': dist_re.search(log_content).group(1) == 'True',
+        'display_step': int(display_step_re.search(log_content).group(1)),
+        'res_dir': res_dir_re.search(log_content).group(1),
+        'ex_name': ex_name_re.search(log_content).group(1),
+        'use_gpu': use_gpu_re.search(log_content).group(1) == 'True',
+        'fp16': fp16_re.search(log_content).group(1) == 'False',
+        'torchscript': torchscript_re.search(log_content).group(1) == 'False',
+        'seed': int(seed_re.search(log_content).group(1)),
+        'diff_seed': diff_seed_re.search(log_content).group(1) == 'False',
+        'fps': fps_re.search(log_content).group(1) == 'False',
+        'empty_cache': empty_cache_re.search(log_content).group(1) == 'True',
+        'find_unused_parameters': find_unused_parameters_re.search(log_content).group(1) == 'False',
+        'broadcast_buffers': broadcast_buffers_re.search(log_content).group(1) == 'True',
+        'resume_from': resume_from_re.search(log_content).group(1),
+        'auto_resume': auto_resume_re.search(log_content).group(1) == 'False',
+        'test': test_re.search(log_content).group(1) == 'False',
+        'inference': inference_re.search(log_content).group(1) == 'False',
+        'deterministic': deterministic_re.search(log_content).group(1) == 'False',
+        'launcher': launcher_re.search(log_content).group(1),
+        'local_rank': int(local_rank_re.search(log_content).group(1)),
+        'port': int(port_re.search(log_content).group(1)),
+        'batch_size': int(batch_size_re.search(log_content).group(1)),
+        'val_batch_size': int(val_batch_size_re.search(log_content).group(1)),
+        'num_workers': int(num_workers_re.search(log_content).group(1)),
+        'data_root': data_root_re.search(log_content).group(1),
+        'dataname': dataname_re.search(log_content).group(1),
+        'pre_seq_length': int(pre_seq_length_re.search(log_content).group(1)),
+        'aft_seq_length': int(aft_seq_length_re.search(log_content).group(1)),
+        'total_length': int(total_length_re.search(log_content).group(1)),
+        'use_augment': use_augment_re.search(log_content).group(1) == 'False',
+        'use_prefetcher': use_prefetcher_re.search(log_content).group(1) == 'False',
+        'drop_last': drop_last_re.search(log_content).group(1) == 'False',
+        'method': method_re.search(log_content).group(1),
+        'config_file': config_file_re.search(log_content).group(1),
+        'model_type': model_type_re.search(log_content).group(1),
+        'drop': float(drop_re.search(log_content).group(1)),
+        'drop_path': int(drop_path_re.search(log_content).group(1)),
+        'overwrite': overwrite_re.search(log_content).group(1) == 'False',
+        'epoch': int(epoch_re.search(log_content).group(1)),
+        'checkpoint_interval': checkpoint_interval_re.search(log_content).group(1),
+        'log_step': int(log_step_re.search(log_content).group(1)),
+        'opt': opt_re.search(log_content).group(1),
+        'opt_eps': opt_eps_re.search(log_content).group(1),
+        'opt_betas': opt_betas_re.search(log_content).group(1),
+        'momentum': float(momentum_re.search(log_content).group(1)),
+        'weight_decay': float(weight_decay_re.search(log_content).group(1)),
+        'clip_grad': clip_grad_re.search(log_content).group(1),
+        'clip_mode': clip_mode_re.search(log_content).group(1),
+        'early_stop_epoch': early_stop_epoch_re.search(log_content).group(1),
+        'no_display_method_info': no_display_method_info_re.search(log_content).group(1) == 'False',
+        'sched': sched_re.search(log_content).group(1),
+        'lr': float(lr_re.search(log_content).group(1)),
+        'lr_k_decay': float(lr_k_decay_re.search(log_content).group(1)),
+        'warmup_lr': float(warmup_lr_re.search(log_content).group(1)),
+        'min_lr': float(min_lr_re.search(log_content).group(1)),
+        'final_div_factor': float(final_div_factor_re.search(log_content).group(1)),
+        'warmup_epoch': int(warmup_epoch_re.search(log_content).group(1)),
+        'decay_epoch': int(decay_epoch_re.search(log_content).group(1)),
+        'decay_rate': float(decay_rate_re.search(log_content).group(1)),
+        'filter_bias_and_bn': filter_bias_and_bn_re.search(log_content).group(1) == 'False',
+        'datafile_in': datafile_in_re.search(log_content).group(1),
+        'saved_path': saved_path_re.search(log_content).group(1),
+        'metrics': metrics_re.search(log_content).group(1).split(', '),
+        'in_shape': list(map(int, in_shape_re.search(log_content).group(1).split(','))),
+        'spatio_kernel_enc': int(spatio_kernel_enc_re.search(log_content).group(1)),
+        'spatio_kernel_dec': int(spatio_kernel_dec_re.search(log_content).group(1)),
+        'hid_S': int(hid_S_re.search(log_content).group(1)),
+        'hid_T': int(hid_T_re.search(log_content).group(1)),
+        'N_T': int(N_T_re.search(log_content).group(1)),
+        'N_S': int(N_S_re.search(log_content).group(1))
     }
 
     for epoch_num, data in training_epochs.items():
