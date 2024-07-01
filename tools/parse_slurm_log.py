@@ -20,6 +20,7 @@ config_file_re = re.compile(r'config_file:\s*(.*?)\s*\t')
 epoch_re = re.compile(r'epoch:\s*(\d+)\s*\t')
 in_shape_re = re.compile(r'in_shape:\s*\[(.*?)\]')
 
+training_length_re = re.compile(r'train loss: \d+\.\d+ \| data time: \d+\.\d+: 100%\|██████████\| \d+/\d+ \[(\d+):(\d+)<\d+:\d+,  \d+\.\d+it/s\]')
 training_info_re = re.compile(r'Epoch: (\d+), Steps: (\d+) \| Lr: ([\d.]+) \| Train Loss: ([\d.]+) \| Vali Loss: ([\d.]+)')
 # Adjusted validation metrics regex pattern to handle different formats
 validation_metrics_re = re.compile(r'\[>{7,}\] \d+/\d+, [\d.]+ task/s, elapsed: (\d+)s, ETA:.*?mse:([\d.]+), mae:([\d.]+), ssim:([\d.]+)', re.MULTILINE)
@@ -96,13 +97,14 @@ def parse_log(log_file):
     # Extract training epochs information
     training_epochs = {}
     training_metrics_matches = list(re.finditer(training_info_re, log_content))
+    training_length_matches = list(re.finditer(training_length_re, log_content))
     validation_metrics_matches = list(re.finditer(validation_metrics_re, log_content))
 
-    if len(training_metrics_matches) != len(validation_metrics_matches) - 1:
+    if len(training_metrics_matches) != training_length_matches != len(validation_metrics_matches) - 1:
         print("Mismatch between the number of training and validation metric matches.")
         raise ValueError("Log file does not contain matching training and validation information.")
 
-    for train_match, val_match in zip(training_metrics_matches, validation_metrics_matches[:-1]):
+    for train_match, train_length_match, val_match in zip(training_metrics_matches, training_length_matches, validation_metrics_matches[:-1]):
         epoch_num = int(train_match.group(1))
         steps = int(train_match.group(2))
         lr = float(train_match.group(3))
@@ -114,12 +116,17 @@ def parse_log(log_file):
         mae = float(val_match.group(3))
         ssim = float(val_match.group(4))
 
+        minutes = int(train_length_match.group(1))
+        seconds = int(train_length_match.group(2))
+        total_seconds = minutes * 60 + seconds
+
         training_epochs[epoch_num] = {
             'steps': steps,
             'lr': lr,
             'train_loss': train_loss,
             'vali_loss': vali_loss,
-            'elapsed': elapsed,
+            'train_seconds': total_seconds,
+            'val_seconds': elapsed,
             'mse': mse,
             'mae': mae,
             'ssim': ssim
