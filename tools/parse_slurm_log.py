@@ -4,10 +4,10 @@ from datetime import timedelta
 import os
 import argparse
 
-# Define individual regular expressions to extract required information
 hostname_re = re.compile(r'Running on hostname:\s*(.*)')
 experiment_re = re.compile(r'---\[ Experiment: (.*) \]---')
 world_size_re = re.compile(r'Distributed world_size=(\d+)')
+rank_pattern_re = re.compile(r'Use distributed mode with GPUs: local rank=\d+')
 config_re = re.compile(r'loading config from (.*) \.\.\.')
 ex_name_re = re.compile(r'ex_name:\s*(.*?)\s*\t')
 seed_re = re.compile(r'seed:\s*(\d+)\s*\t')
@@ -28,9 +28,6 @@ validation_metrics_re = re.compile(
     re.MULTILINE)
 training_time_re = re.compile(r'Training time: (\d+) days, (\d+):(\d+):(\d+)')
 
-# Define the regex pattern to match the lines
-rank_pattern_re = re.compile(r'Use distributed mode with GPUs: local rank=\d+')
-
 
 def parse_log(log_file):
     # Extract job_id from filename
@@ -39,11 +36,9 @@ def parse_log(log_file):
     with open(log_file, 'r') as file:
         log_content = file.read()
 
-    # Count occurrences of the rank pattern
     rank_matches = re.findall(rank_pattern_re, log_content)
     num_gpus = len(rank_matches)
 
-    # Extract individual items
     hostname_match = hostname_re.search(log_content)
     experiment_match = experiment_re.search(log_content)
     world_size_match = world_size_re.search(log_content)
@@ -58,7 +53,6 @@ def parse_log(log_file):
     epoch_match = epoch_re.search(log_content)
     in_shape_match = in_shape_re.search(log_content)
 
-    # Log errors if any item is not found
     if not hostname_match:
         print("Hostname not found in log file.")
     if not experiment_match:
@@ -89,10 +83,9 @@ def parse_log(log_file):
     if not hostname_match or not experiment_match or not config_file_match or not ex_name_match or not seed_match or not batch_size_match or not val_batch_size_match or not pre_seq_length_match or not aft_seq_length_match or not method_match or not config_file_match or not epoch_match or not in_shape_match:
         raise ValueError("Log file does not contain the necessary information.")
 
-    # Extract values from matches
     hostname = hostname_match.group(1)
     experiment = experiment_match.group(1)
-    world_size = world_size_match.group(1) if world_size_match else None
+    world_size = world_size_match.group(1) if world_size_match else 1
     ex_name = ex_name_match.group(1)
     seed = int(seed_match.group(1))
     batch_size = int(batch_size_match.group(1))
@@ -104,7 +97,6 @@ def parse_log(log_file):
     epoch = int(epoch_match.group(1))
     in_shape = in_shape_match.group(1)
 
-    # Extract training epochs information
     training_epochs = {}
     training_metrics_matches = list(re.finditer(training_info_re, log_content))
     training_length_matches = list(re.finditer(training_length_re, log_content))
@@ -146,21 +138,18 @@ def parse_log(log_file):
             'ssim': ssim
         }
 
-    # Extract training time
     training_time_match = training_time_re.search(log_content)
     training_time_seconds = int(timedelta(days=int(training_time_match.group(1)),
                                           hours=int(training_time_match.group(2)),
                                           minutes=int(training_time_match.group(3)),
                                           seconds=int(training_time_match.group(4))).total_seconds())
 
-    # Extract final test results
     final_test_match = validation_metrics_matches[-1]
     test_time = int(final_test_match.group(1))
     test_mse = float(final_test_match.group(2))
     test_mae = float(final_test_match.group(3))
     test_ssim = float(final_test_match.group(4))
 
-    # Summarize data for a single CSV line
     csv_line = {
         'jobid': job_id,
         'hostname': hostname,
@@ -181,7 +170,7 @@ def parse_log(log_file):
         'test_mse': test_mse,
         'test_mae': test_mae,
         'test_ssim': test_ssim,
-        'num_gpus': num_gpus  # Add the rank count to the CSV line
+        'num_gpus': num_gpus
     }
 
     for epoch_num, data in training_epochs.items():
@@ -208,7 +197,6 @@ def write_csv(parsed_data, output_csv):
         combined_df.to_csv(output_csv, index=False)
     else:
         new_data_df.to_csv(output_csv, index=False)
-
 
 def main():
     parser = argparse.ArgumentParser(description="Parse log file and output to CSV.")
