@@ -20,11 +20,17 @@ config_file_re = re.compile(r'config_file:\s*(.*?)\s*\t')
 epoch_re = re.compile(r'epoch:\s*(\d+)\s*\t')
 in_shape_re = re.compile(r'in_shape:\s*\[(.*?)\]')
 
-training_info_re = re.compile(r'Epoch: (\d+), Steps: (\d+) \| Lr: ([\d.]+) \| Train Loss: ([\d.]+) \| Vali Loss: ([\d.]+)')
-training_length_re = re.compile(r'100%\|██████████\| \d+/\d+ \[(\d+):(\d+)<\d+:\d+,  \d+\.\d+(it/s|s/it)\]\n\[')
-# Adjusted validation metrics regex pattern to handle different formats
-validation_metrics_re = re.compile(r'\[>{7,}\] \d+/\d+, [\d.]+ task/s, elapsed: (\d+)s, ETA:.*?mse:([\d.]+), mae:([\d.]+), ssim:([\d.]+)', re.MULTILINE)
+training_info_re = re.compile(
+    r'Epoch: (\d+), Steps: (\d+) \| Lr: ([\d.]+) \| Train Loss: ([\d.]+) \| Vali Loss: ([\d.]+)')
+training_length_re = re.compile(r'100%\|██████████\| \d+/\d+ \[(\d+):(\d+)<\d+:\d+, *\d+\.\d+(it/s|s/it)\]\n\[')
+validation_metrics_re = re.compile(
+    r'\[>{7,}\] \d+/\d+, [\d.]+ task/s, elapsed: (\d+)s, ETA:.*?mse:([\d.]+), mae:([\d.]+), ssim:([\d.]+)',
+    re.MULTILINE)
 training_time_re = re.compile(r'Training time: (\d+) days, (\d+):(\d+):(\d+)')
+
+# Define the regex pattern to match the lines
+rank_pattern_re = re.compile(r'Use distributed mode with GPUs: local rank=\d+')
+
 
 def parse_log(log_file):
     # Extract job_id from filename
@@ -32,6 +38,10 @@ def parse_log(log_file):
 
     with open(log_file, 'r') as file:
         log_content = file.read()
+
+    # Count occurrences of the rank pattern
+    rank_matches = re.findall(rank_pattern_re, log_content)
+    num_gpus = len(rank_matches)
 
     # Extract individual items
     hostname_match = hostname_re.search(log_content)
@@ -107,7 +117,8 @@ def parse_log(log_file):
         print("Mismatch between the number of training and validation metric matches.")
         raise ValueError("Log file does not contain matching training and validation information.")
 
-    for train_match, train_length_match, val_match in zip(training_metrics_matches, training_length_matches, validation_metrics_matches[:-1]):
+    for train_match, train_length_match, val_match in zip(training_metrics_matches, training_length_matches,
+                                                          validation_metrics_matches[:-1]):
         epoch_num = int(train_match.group(1))
         steps = int(train_match.group(2))
         lr = float(train_match.group(3))
@@ -170,6 +181,7 @@ def parse_log(log_file):
         'test_mse': test_mse,
         'test_mae': test_mae,
         'test_ssim': test_ssim,
+        'num_gpus': num_gpus  # Add the rank count to the CSV line
     }
 
     for epoch_num, data in training_epochs.items():
@@ -197,6 +209,7 @@ def write_csv(parsed_data, output_csv):
     else:
         new_data_df.to_csv(output_csv, index=False)
 
+
 def main():
     parser = argparse.ArgumentParser(description="Parse log file and output to CSV.")
     parser.add_argument('log_file', help="The input log file to be parsed.")
@@ -206,6 +219,7 @@ def main():
 
     parsed_data = parse_log(args.log_file)
     write_csv(parsed_data, args.output_csv)
+
 
 if __name__ == "__main__":
     main()
