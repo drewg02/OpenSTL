@@ -74,10 +74,6 @@ def parse_log(log_file):
         print("Epoch not found in log file.")
     if not in_shape_match:
         print("Input shape not found in log file.")
-        # Debugging: Print out the relevant section of the log content
-        start_index = log_content.find("ex_name:")
-        end_index = start_index + 1000  # Adjust the length as needed
-        print("Relevant section of the log content:\n", log_content[start_index:end_index])
 
     if not hostname_match or not experiment_match or not config_file_match or not ex_name_match or not seed_match or not batch_size_match or not val_batch_size_match or not pre_seq_length_match or not aft_seq_length_match or not method_match or not config_file_match or not epoch_match or not in_shape_match:
         raise ValueError("Log file does not contain the necessary information.")
