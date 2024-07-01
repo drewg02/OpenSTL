@@ -1,5 +1,5 @@
 import re
-import csv
+import pandas as pd
 from datetime import timedelta
 import os
 import argparse
@@ -8,7 +8,7 @@ import argparse
 hostname_re = re.compile(r'Running on hostname:\s*(.*)')
 experiment_re = re.compile(r'---\[ Experiment: (.*) \]---')
 world_size_re = re.compile(r'Distributed world_size=(\d+)')
-config_re = re.compile(r'loading config from (.*)')
+config_re = re.compile(r'loading config from (.*) \.\.\.')
 ex_name_re = re.compile(r'ex_name:\s*(.*?)\s*\t')
 seed_re = re.compile(r'seed:\s*(\d+)\s*\t')
 batch_size_re = re.compile(r'batch_size:\s*(\d+)\s*\t')
@@ -174,16 +174,17 @@ def parse_log(log_file):
 
     return csv_line
 
+
 def write_csv(parsed_data, output_csv):
-    file_exists = os.path.isfile(output_csv)
-    fieldnames = list(parsed_data.keys())
+    new_data_df = pd.DataFrame([parsed_data])
 
-    with open(output_csv, 'a' if file_exists else 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    if os.path.isfile(output_csv):
+        existing_data_df = pd.read_csv(output_csv)
 
-        if not file_exists:
-            writer.writeheader()
-        writer.writerow(parsed_data)
+        combined_df = pd.concat([existing_data_df, new_data_df], ignore_index=True)
+        combined_df.to_csv(output_csv, index=False)
+    else:
+        new_data_df.to_csv(output_csv, index=False)
 
 def main():
     parser = argparse.ArgumentParser(description="Parse log file and output to CSV.")
