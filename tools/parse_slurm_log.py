@@ -3,9 +3,10 @@ import pandas as pd
 from datetime import timedelta
 import os
 import argparse
+from collections import defaultdict
+from tqdm import tqdm
 
 hostname_re = re.compile(r'Running on hostname:\s*(.*)')
-experiment_re = re.compile(r'---\[ Experiment: (.*) \]---')
 world_size_re = re.compile(r'Distributed world_size=(\d+)')
 rank_pattern_re = re.compile(r'Use distributed mode with GPUs: local rank=\d+')
 config_re = re.compile(r'loading config from (.*) \.\.\.')
@@ -83,25 +84,28 @@ N_S_re = re.compile(r'N_S:\s*(\d+)')
 
 training_info_re = re.compile(
     r'Epoch: (\d+), Steps: (\d+) \| Lr: ([\d.]+) \| Train Loss: ([\d.]+) \| Vali Loss: ([\d.]+)')
-training_length_re = re.compile(r'100%\|██████████\| \d+/\d+ \[(\d+):(\d+)<\d+:\d+, *\d+\.\d+(it/s|s/it)\]\n\[')
+training_length_re = re.compile(r'(train loss: \d+\.\d+ \| data time: \d+\.\d+: 100%\|██████████\| \d+/\d+ \[\d+:\d+<\d+:\d+, *\d+\.\d+(?:it/s|s/it)\]\n?)+')
 validation_metrics_re = re.compile(
     r'\[>{7,}\] \d+/\d+, [\d.]+ task/s, elapsed: (\d+)s, ETA:.*?mse:([\d.]+), mae:([\d.]+), ssim:([\d.]+)',
     re.MULTILINE)
 training_time_re = re.compile(r'Training time: (\d+) days, (\d+):(\d+):(\d+)')
 
+def parse_log(log_files):
+    status = "FINISHED"
+    job_id = os.path.basename(log_files[0]).split('-')[-1].split('.')[0]
 
-def parse_log(log_file):
-    # Extract job_id from filename
-    job_id = os.path.basename(log_file).split('-')[1].split('.')[0]
+    log_content = ""
+    for log_file in log_files:
+        with open(log_file, 'r') as file:
+            log_content += file.read()
 
-    with open(log_file, 'r') as file:
-        log_content = file.read()
+    if "FAILED" in log_content:
+        status = "FAILED"
 
     rank_matches = re.findall(rank_pattern_re, log_content)
     num_gpus = len(rank_matches)
 
     hostname_match = hostname_re.search(log_content)
-    experiment_match = experiment_re.search(log_content)
     world_size_match = world_size_re.search(log_content)
     config_file_match = config_re.search(log_content)
     ex_name_match = ex_name_re.search(log_content)
@@ -114,38 +118,10 @@ def parse_log(log_file):
     epoch_match = epoch_re.search(log_content)
     in_shape_match = in_shape_re.search(log_content)
 
-    if not hostname_match:
-        print("Hostname not found in log file.")
-    if not experiment_match:
-        print("Experiment not found in log file.")
-    if not world_size_match:
-        print("World size not found in log file.")
-    if not config_file_match:
-        print("Config file not found in log file.")
-    if not ex_name_match:
-        print("Experiment name (ex_name) not found in log file.")
-    if not seed_match:
-        print("Seed not found in log file.")
-    if not batch_size_match:
-        print("Batch size not found in log file.")
-    if not val_batch_size_match:
-        print("Validation batch size not found in log file.")
-    if not pre_seq_length_match:
-        print("Pre-sequence length not found in log file.")
-    if not aft_seq_length_match:
-        print("After-sequence length not found in log file.")
-    if not method_match:
-        print("Method not found in log file.")
-    if not epoch_match:
-        print("Epoch not found in log file.")
-    if not in_shape_match:
-        print("Input shape not found in log file.")
-
-    if not hostname_match or not experiment_match or not config_file_match or not ex_name_match or not seed_match or not batch_size_match or not val_batch_size_match or not pre_seq_length_match or not aft_seq_length_match or not method_match or not config_file_match or not epoch_match or not in_shape_match:
-        raise ValueError("Log file does not contain the necessary information.")
+    if not hostname_match or not config_file_match or not ex_name_match or not seed_match or not batch_size_match or not val_batch_size_match or not pre_seq_length_match or not aft_seq_length_match or not method_match or not config_file_match or not epoch_match or not in_shape_match:
+        status = "FAILED"
 
     hostname = hostname_match.group(1)
-    experiment = experiment_match.group(1)
     world_size = world_size_match.group(1) if world_size_match else 1
 
     training_epochs = {}
@@ -153,58 +129,137 @@ def parse_log(log_file):
     training_length_matches = list(re.finditer(training_length_re, log_content))
     validation_metrics_matches = list(re.finditer(validation_metrics_re, log_content))
 
-    if len(training_metrics_matches) != len(training_length_matches) != len(validation_metrics_matches) - 1:
-        print(len(training_metrics_matches))
-        print(len(training_length_matches))
-        print(len(validation_metrics_matches))
-        print("Mismatch between the number of training and validation metric matches.")
-        raise ValueError("Log file does not contain matching training and validation information.")
+    test_time, test_mse, test_mae, test_ssim = None, None, None, None
+    if len(training_metrics_matches) < 1 or (len(training_metrics_matches) != len(training_length_matches) != len(validation_metrics_matches) - 1):
+        status = "FAILED"
+    else:
+        for train_match, train_length_match, val_match in zip(training_metrics_matches, training_length_matches,
+                                                              validation_metrics_matches[:-1]):
+            epoch_num = int(train_match.group(1))
+            steps = int(train_match.group(2))
+            lr = float(train_match.group(3))
+            train_loss = float(train_match.group(4))
+            vali_loss = float(train_match.group(5))
 
-    for train_match, train_length_match, val_match in zip(training_metrics_matches, training_length_matches,
-                                                          validation_metrics_matches[:-1]):
-        epoch_num = int(train_match.group(1))
-        steps = int(train_match.group(2))
-        lr = float(train_match.group(3))
-        train_loss = float(train_match.group(4))
-        vali_loss = float(train_match.group(5))
+            elapsed = int(val_match.group(1))
+            mse = float(val_match.group(2))
+            mae = float(val_match.group(3))
+            ssim = float(val_match.group(4))
 
-        elapsed = int(val_match.group(1))
-        mse = float(val_match.group(2))
-        mae = float(val_match.group(3))
-        ssim = float(val_match.group(4))
+            train_length = train_length_match.group(0).split('\n')[-2].strip()
+            match = re.search(r"\[(\d{2}):(\d{2})<\d{2}:\d{2},", train_length)
 
-        minutes = int(train_length_match.group(1))
-        seconds = int(train_length_match.group(2))
-        total_seconds = minutes * 60 + seconds
+            total_seconds = None
+            if match:
+                minutes = int(match.group(1))
+                seconds = int(match.group(2))
+                total_seconds = minutes * 60 + seconds
 
-        training_epochs[epoch_num] = {
-            'steps': steps,
-            'lr': lr,
-            'train_loss': train_loss,
-            'vali_loss': vali_loss,
-            'train_seconds': total_seconds,
-            'val_seconds': elapsed,
-            'mse': mse,
-            'mae': mae,
-            'ssim': ssim
-        }
+            training_epochs[epoch_num] = {
+                'steps': steps,
+                'lr': lr,
+                'train_loss': train_loss,
+                'vali_loss': vali_loss,
+                'train_seconds': total_seconds,
+                'val_seconds': elapsed,
+                'mse': mse,
+                'mae': mae,
+                'ssim': ssim
+            }
+
+        final_test_match = validation_metrics_matches[-1]
+        if final_test_match and "val" not in final_test_match.group(0):
+            test_time = int(final_test_match.group(1))
+            test_mse = float(final_test_match.group(2))
+            test_mae = float(final_test_match.group(3))
+            test_ssim = float(final_test_match.group(4))
 
     training_time_match = training_time_re.search(log_content)
-    training_time_seconds = int(timedelta(days=int(training_time_match.group(1)),
+    training_time_seconds = None
+    if training_time_match:
+        training_time_seconds = int(timedelta(days=int(training_time_match.group(1)),
                                           hours=int(training_time_match.group(2)),
                                           minutes=int(training_time_match.group(3)),
                                           seconds=int(training_time_match.group(4))).total_seconds())
+    elif status == "FINISHED":
+        status = "UNFINISHED"
 
-    final_test_match = validation_metrics_matches[-1]
-    test_time = int(final_test_match.group(1))
-    test_mse = float(final_test_match.group(2))
-    test_mae = float(final_test_match.group(3))
-    test_ssim = float(final_test_match.group(4))
+    device_match = device_re.search(log_content)
+    dist_match = dist_re.search(log_content)
+    display_step_match = display_step_re.search(log_content)
+    res_dir_match = res_dir_re.search(log_content)
+    ex_name_match = ex_name_re.search(log_content)
+    use_gpu_match = use_gpu_re.search(log_content)
+    fp16_match = fp16_re.search(log_content)
+    torchscript_match = torchscript_re.search(log_content)
+    seed_match = seed_re.search(log_content)
+    diff_seed_match = diff_seed_re.search(log_content)
+    fps_match = fps_re.search(log_content)
+    empty_cache_match = empty_cache_re.search(log_content)
+    find_unused_parameters_match = find_unused_parameters_re.search(log_content)
+    broadcast_buffers_match = broadcast_buffers_re.search(log_content)
+    resume_from_match = resume_from_re.search(log_content)
+    auto_resume_match = auto_resume_re.search(log_content)
+    test_match = test_re.search(log_content)
+    inference_match = inference_re.search(log_content)
+    deterministic_match = deterministic_re.search(log_content)
+    launcher_match = launcher_re.search(log_content)
+    local_rank_match = local_rank_re.search(log_content)
+    port_match = port_re.search(log_content)
+    batch_size_match = batch_size_re.search(log_content)
+    val_batch_size_match = val_batch_size_re.search(log_content)
+    num_workers_match = num_workers_re.search(log_content)
+    data_root_match = data_root_re.search(log_content)
+    dataname_match = dataname_re.search(log_content)
+    pre_seq_length_match = pre_seq_length_re.search(log_content)
+    aft_seq_length_match = aft_seq_length_re.search(log_content)
+    total_length_match = total_length_re.search(log_content)
+    use_augment_match = use_augment_re.search(log_content)
+    use_prefetcher_match = use_prefetcher_re.search(log_content)
+    drop_last_match = drop_last_re.search(log_content)
+    method_match = method_re.search(log_content)
+    config_file_match = config_file_re.search(log_content)
+    model_type_match = model_type_re.search(log_content)
+    drop_match = drop_re.search(log_content)
+    drop_path_match = drop_path_re.search(log_content)
+    overwrite_match = overwrite_re.search(log_content)
+    epoch_match = epoch_re.search(log_content)
+    checkpoint_interval_match = checkpoint_interval_re.search(log_content)
+    log_step_match = log_step_re.search(log_content)
+    opt_match = opt_re.search(log_content)
+    opt_eps_match = opt_eps_re.search(log_content)
+    opt_betas_match = opt_betas_re.search(log_content)
+    momentum_match = momentum_re.search(log_content)
+    weight_decay_match = weight_decay_re.search(log_content)
+    clip_grad_match = clip_grad_re.search(log_content)
+    clip_mode_match = clip_mode_re.search(log_content)
+    early_stop_epoch_match = early_stop_epoch_re.search(log_content)
+    no_display_method_info_match = no_display_method_info_re.search(log_content)
+    sched_match = sched_re.search(log_content)
+    lr_match = lr_re.search(log_content)
+    lr_k_decay_match = lr_k_decay_re.search(log_content)
+    warmup_lr_match = warmup_lr_re.search(log_content)
+    min_lr_match = min_lr_re.search(log_content)
+    final_div_factor_match = final_div_factor_re.search(log_content)
+    warmup_epoch_match = warmup_epoch_re.search(log_content)
+    decay_epoch_match = decay_epoch_re.search(log_content)
+    decay_rate_match = decay_rate_re.search(log_content)
+    filter_bias_and_bn_match = filter_bias_and_bn_re.search(log_content)
+    datafile_in_match = datafile_in_re.search(log_content)
+    saved_path_match = saved_path_re.search(log_content)
+    metrics_match = metrics_re.search(log_content)
+    in_shape_match = in_shape_re.search(log_content)
+    spatio_kernel_enc_match = spatio_kernel_enc_re.search(log_content)
+    spatio_kernel_dec_match = spatio_kernel_dec_re.search(log_content)
+    hid_S_match = hid_S_re.search(log_content)
+    hid_T_match = hid_T_re.search(log_content)
+    N_T_match = N_T_re.search(log_content)
+    N_S_match = N_S_re.search(log_content)
 
     csv_line = {
         'jobid': job_id,
+        'status': status,
         'hostname': hostname,
-        'experiment': experiment,
         'world_size': world_size,
         'training_time_seconds': training_time_seconds,
         'test_time': test_time,
@@ -212,77 +267,79 @@ def parse_log(log_file):
         'test_mae': test_mae,
         'test_ssim': test_ssim,
         'num_gpus': num_gpus,
-        'device': device_re.search(log_content).group(1),
-        'dist': dist_re.search(log_content).group(1) == 'True',
-        'display_step': int(display_step_re.search(log_content).group(1)),
-        'res_dir': res_dir_re.search(log_content).group(1),
-        'ex_name': ex_name_re.search(log_content).group(1),
-        'use_gpu': use_gpu_re.search(log_content).group(1) == 'True',
-        'fp16': fp16_re.search(log_content).group(1) == 'False',
-        'torchscript': torchscript_re.search(log_content).group(1) == 'False',
-        'seed': int(seed_re.search(log_content).group(1)),
-        'diff_seed': diff_seed_re.search(log_content).group(1) == 'False',
-        'fps': fps_re.search(log_content).group(1) == 'False',
-        'empty_cache': empty_cache_re.search(log_content).group(1) == 'True',
-        'find_unused_parameters': find_unused_parameters_re.search(log_content).group(1) == 'False',
-        'broadcast_buffers': broadcast_buffers_re.search(log_content).group(1) == 'True',
-        'resume_from': resume_from_re.search(log_content).group(1),
-        'auto_resume': auto_resume_re.search(log_content).group(1) == 'False',
-        'test': test_re.search(log_content).group(1) == 'False',
-        'inference': inference_re.search(log_content).group(1) == 'False',
-        'deterministic': deterministic_re.search(log_content).group(1) == 'False',
-        'launcher': launcher_re.search(log_content).group(1),
-        'local_rank': int(local_rank_re.search(log_content).group(1)),
-        'port': int(port_re.search(log_content).group(1)),
-        'batch_size': int(batch_size_re.search(log_content).group(1)),
-        'val_batch_size': int(val_batch_size_re.search(log_content).group(1)),
-        'num_workers': int(num_workers_re.search(log_content).group(1)),
-        'data_root': data_root_re.search(log_content).group(1),
-        'dataname': dataname_re.search(log_content).group(1),
-        'pre_seq_length': int(pre_seq_length_re.search(log_content).group(1)),
-        'aft_seq_length': int(aft_seq_length_re.search(log_content).group(1)),
-        'total_length': int(total_length_re.search(log_content).group(1)),
-        'use_augment': use_augment_re.search(log_content).group(1) == 'False',
-        'use_prefetcher': use_prefetcher_re.search(log_content).group(1) == 'False',
-        'drop_last': drop_last_re.search(log_content).group(1) == 'False',
-        'method': method_re.search(log_content).group(1),
-        'config_file': config_file_re.search(log_content).group(1),
-        'model_type': model_type_re.search(log_content).group(1),
-        'drop': float(drop_re.search(log_content).group(1)),
-        'drop_path': int(drop_path_re.search(log_content).group(1)),
-        'overwrite': overwrite_re.search(log_content).group(1) == 'False',
-        'epoch': int(epoch_re.search(log_content).group(1)),
-        'checkpoint_interval': checkpoint_interval_re.search(log_content).group(1),
-        'log_step': int(log_step_re.search(log_content).group(1)),
-        'opt': opt_re.search(log_content).group(1),
-        'opt_eps': opt_eps_re.search(log_content).group(1),
-        'opt_betas': opt_betas_re.search(log_content).group(1),
-        'momentum': float(momentum_re.search(log_content).group(1)),
-        'weight_decay': float(weight_decay_re.search(log_content).group(1)),
-        'clip_grad': clip_grad_re.search(log_content).group(1),
-        'clip_mode': clip_mode_re.search(log_content).group(1),
-        'early_stop_epoch': early_stop_epoch_re.search(log_content).group(1),
-        'no_display_method_info': no_display_method_info_re.search(log_content).group(1) == 'False',
-        'sched': sched_re.search(log_content).group(1),
-        'lr': float(lr_re.search(log_content).group(1)),
-        'lr_k_decay': float(lr_k_decay_re.search(log_content).group(1)),
-        'warmup_lr': float(warmup_lr_re.search(log_content).group(1)),
-        'min_lr': float(min_lr_re.search(log_content).group(1)),
-        'final_div_factor': float(final_div_factor_re.search(log_content).group(1)),
-        'warmup_epoch': int(warmup_epoch_re.search(log_content).group(1)),
-        'decay_epoch': int(decay_epoch_re.search(log_content).group(1)),
-        'decay_rate': float(decay_rate_re.search(log_content).group(1)),
-        'filter_bias_and_bn': filter_bias_and_bn_re.search(log_content).group(1) == 'False',
-        'datafile_in': datafile_in_re.search(log_content).group(1),
-        'saved_path': saved_path_re.search(log_content).group(1),
-        'metrics': metrics_re.search(log_content).group(1).split(', '),
-        'in_shape': list(map(int, in_shape_re.search(log_content).group(1).split(','))),
-        'spatio_kernel_enc': int(spatio_kernel_enc_re.search(log_content).group(1)),
-        'spatio_kernel_dec': int(spatio_kernel_dec_re.search(log_content).group(1)),
-        'hid_S': int(hid_S_re.search(log_content).group(1)),
-        'hid_T': int(hid_T_re.search(log_content).group(1)),
-        'N_T': int(N_T_re.search(log_content).group(1)),
-        'N_S': int(N_S_re.search(log_content).group(1))
+        'device': device_match.group(1) if device_match else None,
+        'dist': dist_match.group(1) == 'True' if dist_match else None,
+        'display_step': int(display_step_match.group(1)) if display_step_match else None,
+        'res_dir': res_dir_match.group(1) if res_dir_match else None,
+        'ex_name': ex_name_match.group(1) if ex_name_match else None,
+        'use_gpu': use_gpu_match.group(1) == 'True' if use_gpu_match else None,
+        'fp16': fp16_match.group(1) == 'False' if fp16_match else None,
+        'torchscript': torchscript_match.group(1) == 'False' if torchscript_match else None,
+        'seed': int(seed_match.group(1)) if seed_match else None,
+        'diff_seed': diff_seed_match.group(1) == 'False' if diff_seed_match else None,
+        'fps': fps_match.group(1) == 'False' if fps_match else None,
+        'empty_cache': empty_cache_match.group(1) == 'True' if empty_cache_match else None,
+        'find_unused_parameters': find_unused_parameters_match.group(
+            1) == 'False' if find_unused_parameters_match else None,
+        'broadcast_buffers': broadcast_buffers_match.group(1) == 'True' if broadcast_buffers_match else None,
+        'resume_from': resume_from_match.group(1) if resume_from_match else None,
+        'auto_resume': auto_resume_match.group(1) == 'False' if auto_resume_match else None,
+        'test': test_match.group(1) == 'False' if test_match else None,
+        'inference': inference_match.group(1) == 'False' if inference_match else None,
+        'deterministic': deterministic_match.group(1) == 'False' if deterministic_match else None,
+        'launcher': launcher_match.group(1) if launcher_match else None,
+        'local_rank': int(local_rank_match.group(1)) if local_rank_match else None,
+        'port': int(port_match.group(1)) if port_match else None,
+        'batch_size': int(batch_size_match.group(1)) if batch_size_match else None,
+        'val_batch_size': int(val_batch_size_match.group(1)) if val_batch_size_match else None,
+        'num_workers': int(num_workers_match.group(1)) if num_workers_match else None,
+        'data_root': data_root_match.group(1) if data_root_match else None,
+        'dataname': dataname_match.group(1) if dataname_match else None,
+        'pre_seq_length': int(pre_seq_length_match.group(1)) if pre_seq_length_match else None,
+        'aft_seq_length': int(aft_seq_length_match.group(1)) if aft_seq_length_match else None,
+        'total_length': int(total_length_match.group(1)) if total_length_match else None,
+        'use_augment': use_augment_match.group(1) == 'False' if use_augment_match else None,
+        'use_prefetcher': use_prefetcher_match.group(1) == 'False' if use_prefetcher_match else None,
+        'drop_last': drop_last_match.group(1) == 'False' if drop_last_match else None,
+        'method': method_match.group(1) if method_match else None,
+        'config_file': config_file_match.group(1) if config_file_match else None,
+        'model_type': model_type_match.group(1) if model_type_match else None,
+        'drop': float(drop_match.group(1)) if drop_match else None,
+        'drop_path': int(drop_path_match.group(1)) if drop_path_match else None,
+        'overwrite': overwrite_match.group(1) == 'False' if overwrite_match else None,
+        'epoch': int(epoch_match.group(1)) if epoch_match else None,
+        'checkpoint_interval': checkpoint_interval_match.group(1) if checkpoint_interval_match else None,
+        'log_step': int(log_step_match.group(1)) if log_step_match else None,
+        'opt': opt_match.group(1) if opt_match else None,
+        'opt_eps': opt_eps_match.group(1) if opt_eps_match else None,
+        'opt_betas': opt_betas_match.group(1) if opt_betas_match else None,
+        'momentum': float(momentum_match.group(1)) if momentum_match else None,
+        'weight_decay': float(weight_decay_match.group(1)) if weight_decay_match else None,
+        'clip_grad': clip_grad_match.group(1) if clip_grad_match else None,
+        'clip_mode': clip_mode_match.group(1) if clip_mode_match else None,
+        'early_stop_epoch': early_stop_epoch_match.group(1) if early_stop_epoch_match else None,
+        'no_display_method_info': no_display_method_info_match.group(
+            1) == 'False' if no_display_method_info_match else None,
+        'sched': sched_match.group(1) if sched_match else None,
+        'lr': float(lr_match.group(1)) if lr_match else None,
+        'lr_k_decay': float(lr_k_decay_match.group(1)) if lr_k_decay_match else None,
+        'warmup_lr': float(warmup_lr_match.group(1)) if warmup_lr_match else None,
+        'min_lr': float(min_lr_match.group(1)) if min_lr_match else None,
+        'final_div_factor': float(final_div_factor_match.group(1)) if final_div_factor_match else None,
+        'warmup_epoch': int(warmup_epoch_match.group(1)) if warmup_epoch_match else None,
+        'decay_epoch': int(decay_epoch_match.group(1)) if decay_epoch_match else None,
+        'decay_rate': float(decay_rate_match.group(1)) if decay_rate_match else None,
+        'filter_bias_and_bn': filter_bias_and_bn_match.group(1) == 'False' if filter_bias_and_bn_match else None,
+        'datafile_in': datafile_in_match.group(1) if datafile_in_match else None,
+        'saved_path': saved_path_match.group(1) if saved_path_match else None,
+        'metrics': metrics_match.group(1).split(', ') if metrics_match else None,
+        'in_shape': list(map(int, in_shape_match.group(1).split(','))) if in_shape_match else None,
+        'spatio_kernel_enc': int(spatio_kernel_enc_match.group(1)) if spatio_kernel_enc_match else None,
+        'spatio_kernel_dec': int(spatio_kernel_dec_match.group(1)) if spatio_kernel_dec_match else None,
+        'hid_S': int(hid_S_match.group(1)) if hid_S_match else None,
+        'hid_T': int(hid_T_match.group(1)) if hid_T_match else None,
+        'N_T': int(N_T_match.group(1)) if N_T_match else None,
+        'N_S': int(N_S_match.group(1)) if N_S_match else None
     }
 
     for epoch_num, data in training_epochs.items():
@@ -303,22 +360,34 @@ def write_csv(parsed_data, output_csv):
     new_data_df = pd.DataFrame([parsed_data])
 
     if os.path.isfile(output_csv):
-        existing_data_df = pd.read_csv(output_csv)
+        existing_data_df = pd.read_csv(output_csv, low_memory=False)
+
+        new_data_df = new_data_df.dropna(axis=1, how='all')
+        existing_data_df = existing_data_df.dropna(axis=1, how='all')
 
         combined_df = pd.concat([existing_data_df, new_data_df], ignore_index=True)
         combined_df.to_csv(output_csv, index=False)
     else:
         new_data_df.to_csv(output_csv, index=False)
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Parse log file and output to CSV.")
-    parser.add_argument('log_file', help="The input log file to be parsed.")
+    parser = argparse.ArgumentParser(description="Parse log files and output to CSV.")
+    parser.add_argument('log_dir', help="The directory containing log files to be parsed.")
     parser.add_argument('output_csv', help="The output CSV file to write the parsed data.")
 
     args = parser.parse_args()
 
-    parsed_data = parse_log(args.log_file)
-    write_csv(parsed_data, args.output_csv)
+    log_files = defaultdict(list)
+
+    for file_name in os.listdir(args.log_dir):
+        if file_name.endswith('.out') or file_name.endswith('.err'):
+            job_id = file_name.split('-')[-1].split('.')[0]
+            log_files[job_id].append(os.path.join(args.log_dir, file_name))
+
+    for job_id, files in tqdm(log_files.items(), desc="Processing log files"):
+        parsed_data = parse_log(files)
+        write_csv(parsed_data, args.output_csv)
 
 
 if __name__ == "__main__":
