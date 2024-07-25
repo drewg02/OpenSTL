@@ -77,11 +77,14 @@ if __name__ == '__main__':
 
     exp = SimVP_Experiment(args)
 
-    print('>' * 35 + f' training {args.ex_name} ' + '<' * 35)
-    exp.train()
-
-    print('>' * 35 + f' testing {args.ex_name}  ' + '<' * 35)
-    eval_res, _ = exp.test()
+    if config['inference'] and not config['test']:
+        print('>' * 35 + f' inferencing {args.ex_name}  ' + '<' * 35)
+        eval_res, _ = exp.inference()
+    else:
+        print('>' * 35 + f' testing {args.ex_name}  ' + '<' * 35)
+        eval_res, _ = exp.test()
 
     if has_nni and 'mse' in eval_res:
         nni.report_final_result(eval_res['mse'])
+
+
