@@ -233,7 +233,7 @@ class SimVP_Experiment():
                     best_loss = val_losses_m.avg
 
                     print(f'Lowest loss found... Saving best model to {self.model_path}')
-                    self._save(self.model, self.model_path)
+                    self._save(self.model_path)
 
             if self._use_gpu and self.args.empty_cache:
                 torch.cuda.empty_cache()
