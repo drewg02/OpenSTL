@@ -48,6 +48,7 @@ def create_parser():
     return parser
 
 
+
 seconds_format_dict = {
     'years': 31536000,
     'months': 2592000,
@@ -128,7 +129,7 @@ class Recorder:
         self.val_loss_min = val_loss
 
 
-def _weights_to_cpu(state_dict: OrderedDict) -> OrderedDict:
+def weights_to_cpu(state_dict: dict) -> dict:
     """Copy a model state_dict to cpu.
 
     Args:
