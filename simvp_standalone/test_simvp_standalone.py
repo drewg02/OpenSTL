@@ -34,6 +34,7 @@ def create_parser():
     parser.add_argument('--pre_seq_length', type=int, default=10, help='Length of the input sequence')
     parser.add_argument('--aft_seq_length', type=int, default=10, help='Length of the output sequence')
     parser.add_argument('--test', action='store_true', help='Test the model')
+    parser.add_argument('--inference', action='store_true', help='Test the model')
     parser.add_argument('--clip_grad', type=float, default=0, help='Gradient clipping value')
     parser.add_argument('--clip_mode', type=str, default='norm', help='Gradient clipping mode')
     parser.add_argument('--weight_decay', type=float, default=0, help='Weight decay')
