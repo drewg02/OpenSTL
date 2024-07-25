@@ -1,17 +1,51 @@
-import os
 import json
-
-from collections import OrderedDict
-import torch
-import numpy as np
-
+import os
 import random
+from argparse import ArgumentParser
+from collections import OrderedDict
 from functools import partial
 from itertools import repeat
 from typing import Callable
+
+import numpy as np
+import torch
 from timm.data.distributed_sampler import OrderedDistributedSampler, RepeatAugSampler
 
-from simvp_dataset import SimVP_Dataset
+from .simvp_dataset import SimVP_Dataset
+
+
+def create_parser():
+    parser = ArgumentParser(description='SimVP training')
+    parser.add_argument('--datafile_in', type=str, default=None, help='Path to the loader file')
+    parser.add_argument('--config_file', type=str, default=None, help='Path to the config file')
+    parser.add_argument('--ex_name', type=str, default=None, help='Experiment name')
+    parser.add_argument('--work_dirs', type=str, default='./work_dirs', help='Working directory')
+    parser.add_argument('--device', type=str, default='cuda', help='Device to use')
+    parser.add_argument('--spatio_kernel_enc', type=int, default=3, help='Spatial kernel size for encoder')
+    parser.add_argument('--spatio_kernel_dec', type=int, default=3, help='Spatial kernel size for decoder')
+    parser.add_argument('--hid_S', type=int, default=64, help='Hidden size for spatial encoder')
+    parser.add_argument('--hid_T', type=int, default=512, help='Hidden size for temporal encoder')
+    parser.add_argument('--N_T', type=int, default=8, help='Number of temporal layers')
+    parser.add_argument('--N_S', type=int, default=4, help='Number of spatial layers')
+    parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate')
+    parser.add_argument('--batch_size', type=int, default=16, help='Batch size')
+    parser.add_argument('--val_batch_size', type=int, default=16, help='Validation batch size')
+    parser.add_argument('--drop_path', type=float, default=0, help='Drop path rate')
+    parser.add_argument('--epochs', type=int, default=100, help='Number of epochs')
+    parser.add_argument('--use_gpu', default=True, action='store_true', help='Use GPU')
+    parser.add_argument('--dist', action='store_true', help='Use distributed training')
+    parser.add_argument('--pre_seq_length', type=int, default=10, help='Length of the input sequence')
+    parser.add_argument('--aft_seq_length', type=int, default=10, help='Length of the output sequence')
+    parser.add_argument('--test', action='store_true', help='Test the model')
+    parser.add_argument('--inference', action='store_true', help='Test the model')
+    parser.add_argument('--clip_grad', type=float, default=0, help='Gradient clipping value')
+    parser.add_argument('--clip_mode', type=str, default='norm', help='Gradient clipping mode')
+    parser.add_argument('--weight_decay', type=float, default=0, help='Weight decay')
+    parser.add_argument('--opt_eps', type=float, default=None, help='Optimizer epsilon')
+    parser.add_argument('--opt_betas', type=float, nargs='+', default=None, help='Optimizer betas')
+    parser.add_argument('--empty_cache', default=True, action='store_true', help='Empty cache')
+
+    return parser
 
 
 seconds_format_dict = {
@@ -24,6 +58,7 @@ seconds_format_dict = {
     'seconds': 1
 }
 
+
 def format_seconds(seconds):
     time_str = ''
     for key, value in seconds_format_dict.items():
@@ -34,9 +69,9 @@ def format_seconds(seconds):
     return time_str[:-2]
 
 
-
 class AverageMeter:
     """Computes and stores the average and current value"""
+
     def __init__(self):
         self.reset()
 
@@ -89,7 +124,7 @@ class Recorder:
     def save_checkpoint(self, val_loss, model, path):
         if self.verbose:
             print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
-        torch.save(model.state_dict(), path+'/'+'checkpoint.pth')
+        torch.save(model.state_dict(), path + '/' + 'checkpoint.pth')
         self.val_loss_min = val_loss
 
 
@@ -136,6 +171,7 @@ def worker_init(worker_id, worker_seeding='all'):
         # is required (skip numpy re-seed)
         if worker_seeding == 'all':
             np.random.seed(worker_info.seed % (2 ** 32 - 1))
+
 
 class PrefetchLoader:
 
@@ -206,6 +242,7 @@ class PrefetchLoader:
     def dataset(self):
         return self.loader.dataset
 
+
 def create_loader(dataset,
                   batch_size,
                   shuffle=True,
@@ -235,7 +272,7 @@ def create_loader(dataset,
             # of samples per-process, will slightly alter validation results
             sampler = OrderedDistributedSampler(dataset)
     else:
-        assert num_aug_repeats==0, "RepeatAugment is not supported in non-distributed or IterableDataset"
+        assert num_aug_repeats == 0, "RepeatAugment is not supported in non-distributed or IterableDataset"
 
     if collate_fn is None:
         collate_fn = torch.utils.data.dataloader.default_collate
@@ -243,7 +280,8 @@ def create_loader(dataset,
 
     loader_args = dict(
         batch_size=batch_size,
-        shuffle=shuffle and (not isinstance(dataset, torch.utils.data.IterableDataset)) and sampler is None and is_training,
+        shuffle=shuffle and (
+            not isinstance(dataset, torch.utils.data.IterableDataset)) and sampler is None and is_training,
         num_workers=num_workers,
         sampler=sampler,
         collate_fn=collate_fn,
@@ -270,12 +308,13 @@ def create_loader(dataset,
     return loader
 
 
-def create_dataloader(data, pre_seq_length=10, aft_seq_length=10, batch_size=16, shuffle=False, is_training=False, distributed=False):
+def create_dataloader(data, pre_seq_length=10, aft_seq_length=10, batch_size=16, shuffle=False, is_training=False,
+                      distributed=False):
     dataset = SimVP_Dataset(data, pre_seq_length, aft_seq_length)
 
     dataloader = create_loader(dataset, batch_size,
-                             shuffle=shuffle, is_training=is_training,
-                             distributed=distributed, num_workers=4)
+                               shuffle=shuffle, is_training=is_training,
+                               distributed=distributed, num_workers=4)
 
     return dataloader
 
@@ -293,16 +332,19 @@ def create_dataloaders(file_path_or_data, pre_seq_length=10, aft_seq_length=10, 
 
     train_loader, val_loader, test_loader = None, None, None
     if 'train' in loader:
-        train_loader = create_dataloader(loader['train'], pre_seq_length, aft_seq_length, batch_size, True, True, distributed)
+        train_loader = create_dataloader(loader['train'], pre_seq_length, aft_seq_length, batch_size, True, True,
+                                         distributed)
     if 'validation' in loader:
-        val_loader = create_dataloader(loader['validation'], pre_seq_length, aft_seq_length, val_batch_size, False, False, distributed)
+        val_loader = create_dataloader(loader['validation'], pre_seq_length, aft_seq_length, val_batch_size, False,
+                                       False, distributed)
     if 'test' in loader:
-        test_loader = create_dataloader(loader['test'], pre_seq_length, aft_seq_length, test_batch_size, False, False, distributed)
+        test_loader = create_dataloader(loader['test'], pre_seq_length, aft_seq_length, test_batch_size, False, False,
+                                        distributed)
 
     return train_loader, val_loader, test_loader
 
-def measure_throughput(model, input_dummy):
 
+def measure_throughput(model, input_dummy):
     def get_batch_size(H, W):
         max_side = max(H, W)
         if max_side >= 128:

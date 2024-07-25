@@ -6,12 +6,12 @@ import time
 
 import numpy as np
 import torch
-from torch import nn
 from fvcore.nn import FlopCountAnalysis, flop_count_table
+from torch import nn
 
-from simvp_model import SimVP_Model
-from simvp_utils import create_dataloaders, AverageMeter, format_seconds, measure_throughput
-from simvp_metrics import calc_ssim, calc_mse, calc_mae, calc_rmse, calc_psnr
+from .simvp_metrics import calc_ssim, calc_mse, calc_mae, calc_rmse, calc_psnr
+from .simvp_model import SimVP_Model
+from .simvp_utils import create_dataloaders, AverageMeter, format_seconds, measure_throughput
 
 try:
     import nni
@@ -19,6 +19,7 @@ try:
     has_nni = True
 except ImportError:
     has_nni = False
+
 
 class SimVP_Experiment():
     def __init__(self, args, dataloaders=None):
@@ -43,8 +44,8 @@ class SimVP_Experiment():
         self.model = SimVP_Model(**self.args.__dict__).to(self.device)
 
         opt_args = {
-                'weight_decay': 0,
-            }
+            'weight_decay': 0,
+        }
         opt_args.update(lr=self.args.lr, weight_decay=self.args.weight_decay)
         if hasattr(self.args, 'opt_eps') and self.args.opt_eps is not None:
             opt_args['eps'] = self.args.opt_eps
@@ -155,8 +156,7 @@ class SimVP_Experiment():
         flops = flop_count_table(flops)
         fps = measure_throughput(self.model, input_dummy)
         fps = 'Throughputs of {}: {:.3f}\n'.format('SimVP', fps)
-        print('Model info:\n' + info+'\n' + flops+'\n' + fps + dash_line)
-
+        print('Model info:\n' + info + '\n' + flops + '\n' + fps + dash_line)
 
     def train(self):
         best_loss = float('inf')
@@ -218,11 +218,11 @@ class SimVP_Experiment():
             lr = np.mean(np.array([group['lr'] for group in self.optimizer.param_groups]))
             print('Epoch: {0}/{1}, Steps: {2} | Lr: {3:.7f} | Train Loss: {4:.7f} | Vali Loss: {5:.7f}'.format(
                 epoch + 1, self._max_epochs, len(self.train_loader), lr, losses_m.avg, val_losses_m.avg))
-            print(f"val ssim: {ssims_m.avg}, mse: {mses_m.avg}, mae: {maes_m.avg}, rmse: {rmes_m.avg}, psnr: {psnrs_m.avg}\n")
+            print(
+                f"val ssim: {ssims_m.avg}, mse: {mses_m.avg}, mae: {maes_m.avg}, rmse: {rmes_m.avg}, psnr: {psnrs_m.avg}\n")
 
         elapsed_time = time.time() - start_time
         print(f'Training time: {format_seconds(elapsed_time)}')
-
 
     def test(self, save_files=True, do_metrics=True):
         print(f"Loading model from {self.model_path}")
@@ -273,7 +273,8 @@ class SimVP_Experiment():
         if save_files:
             self.save_results(results, self.save_dir)
 
-        return results['metrics'] if do_metrics else None, {key: results[key] for key in ['inputs', 'trues', 'preds']} if not save_files else None
+        return results['metrics'] if do_metrics else None, {key: results[key] for key in
+                                                            ['inputs', 'trues', 'preds']} if not save_files else None
 
     def inference(self, save_dir=None, save_files=True):
         return self.test(save_files=save_files, do_metrics=False)
@@ -302,4 +303,3 @@ class SimVP_Experiment():
                 for j in range(len(line)):
                     file_path = osp.join(str(save_path), f'{j}.npy')
                     np.save(file_path, line[j].reshape(line[j].shape[-2], line[j].shape[-1]))
-

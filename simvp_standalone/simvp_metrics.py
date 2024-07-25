@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def MAE(pred, true, spatial_norm=False):
     if not spatial_norm:
         return np.mean(np.abs(pred - true), axis=(0, 1)).sum()

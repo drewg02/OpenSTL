@@ -9,9 +9,6 @@ def rescale(x):
     return (x - x.max()) / (x.max() - x.min()) * 2 - 1
 
 
-
-
-
 class BasicConv2d(nn.Module):
 
     def __init__(self,

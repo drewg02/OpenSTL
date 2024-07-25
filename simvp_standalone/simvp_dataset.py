@@ -1,7 +1,9 @@
+import pickle
+
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-import pickle
+
 
 def load_data(sample):
     data = []
@@ -20,6 +22,7 @@ def load_data(sample):
             loaded_file = np.array(file)
         data.append(loaded_file)
     return np.stack(data)
+
 
 class SimVP_Dataset(Dataset):
     def __init__(self, data, pre_seq_length, aft_seq_length):
