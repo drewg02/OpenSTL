@@ -1,8 +1,8 @@
 import warnings
 
-from .experiment_recorder import generate_unique_id
-from .simvp_experiment import SimVP_Experiment
-from .simvp_utils import create_parser
+from simvp_standalone.experiment_recorder import generate_unique_id
+from simvp_standalone.simvp_experiment import SimVP_Experiment
+from simvp_standalone.simvp_utils import create_parser
 
 warnings.filterwarnings('ignore')
 
