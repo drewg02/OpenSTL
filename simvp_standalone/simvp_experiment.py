@@ -36,6 +36,7 @@ class SimVP_Experiment():
         self._acquire_device()
         self._get_data(dataloaders)
 
+        self._epoch = None
         self._max_epochs = self.args.epochs
         self._steps_per_epoch = len(self.train_loader)
         self._total_steps = self._max_epochs * self._steps_per_epoch
@@ -184,7 +185,10 @@ class SimVP_Experiment():
     def train(self):
         best_loss = float('inf')
         start_time = time.time()
+
         for epoch in range(self.args.epochs):
+            self._epoch = epoch
+
             losses_m = AverageMeter()
             val_losses_m = AverageMeter()
             ssims_m = AverageMeter()
