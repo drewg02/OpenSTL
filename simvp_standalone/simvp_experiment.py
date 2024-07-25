@@ -11,7 +11,7 @@ from torch import nn
 
 from .simvp_metrics import calc_ssim, calc_mse, calc_mae, calc_rmse, calc_psnr
 from .simvp_model import SimVP_Model
-from .simvp_utils import create_dataloaders, AverageMeter, format_seconds, measure_throughput
+from .simvp_utils import create_dataloaders, AverageMeter, format_seconds, measure_throughput, weights_to_cpu
 
 try:
     import nni
@@ -111,14 +111,37 @@ class SimVP_Experiment():
 
         self.original_test_loader = self.test_loader
 
-    def _load(self, load_path):
-        model = torch.load(load_path)
-        model.to(self.device)
+    def _save(self, load_path):
+        if not load_path:
+            load_path = self.model_path
 
-        return model
+        saved_model = {
+            'epoch': self._epoch + 1,
+            'optimizer': self.optimizer.state_dict(),
+            'state_dict': weights_to_cpu(self.model.state_dict()),
+            'scheduler': self.scheduler.state_dict()}
 
-    def _save(self, model, save_path):
-        torch.save(model, save_path)
+        torch.save(saved_model, load_path)
+
+    def _load(self, save_path):
+        if not save_path:
+            save_path = self.model_path
+
+        try:
+            loaded_model = torch.load(save_path)
+        except:
+            return
+
+        if not isinstance(loaded_model, dict):
+            raise RuntimeError(f'No state_dict found in checkpoint file {save_path}')
+        self._load_from_state_dict(loaded_model['state_dict'])
+        if loaded_model.get('epoch', None) is not None:
+            self._epoch = loaded_model['epoch']
+            self.optimizer.load_state_dict(loaded_model['optimizer'])
+            self.scheduler.load_state_dict(loaded_model['scheduler'])
+
+    def _load_from_state_dict(self, state_dict):
+        self.model.load_state_dict(state_dict)
 
     def _predict(self, pre_seq_length, aft_seq_length, batch_x):
         if aft_seq_length == pre_seq_length:
