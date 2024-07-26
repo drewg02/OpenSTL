@@ -253,7 +253,7 @@ class SimVP_Experiment():
 
     def test(self, save_files=True, do_metrics=True):
         print(f"Loading model from {self.model_path}")
-        self._load(self.model_path)
+        self._load_from_state_dict(torch.load(self.model_path))
 
         self.model.eval()
 
