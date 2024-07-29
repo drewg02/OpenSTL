@@ -19,7 +19,7 @@ from timm.data.distributed_sampler import OrderedDistributedSampler, RepeatAugSa
 from .config_utils import Config
 
 from .simvp_dataset import SimVP_Dataset
-
+from .simulations import simulations
 
 def create_parser():
     parser = argparse.ArgumentParser(
@@ -676,3 +676,11 @@ def set_seed(seed, deterministic=False):
         torch.backends.cudnn.benchmark = False
     else:
         torch.backends.cudnn.benchmark = True
+
+
+def get_simulation_class(simulation_name):
+    simulation_class = [simulation for simulation in simulations if
+                        simulation.__name__.lower() == simulation_name.lower()]
+    if not simulation_class:
+        raise ValueError(f"Invalid simulation: {simulation_name}")
+    return simulation_class[0]
