@@ -16,6 +16,6 @@ $PYTHON -m torch.distributed.launch \
     --master_addr=$MASTER_ADDR \
     --nproc_per_node=$GPUS \
     --master_port=$PORT \
-    simvp_standalone/test_simvp_standalone.py --dist \
+    test_simvp_standalone.py --dist \
     --ex_name $WORK_DIR \
     --launcher="pytorch" ${PY_ARGS}
