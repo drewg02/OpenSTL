@@ -36,6 +36,8 @@ class SimVP_Experiment():
     def __init__(self, args, dataloaders=None):
         self.args = args
         self.device = self.args.device
+        self._rank = 0
+        self._world_size = 1
 
         self.path = os.path.join(self.args.res_dir, self.args.ex_dir)
         if not osp.exists(self.path):
