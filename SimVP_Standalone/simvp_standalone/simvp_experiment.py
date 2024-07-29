@@ -359,9 +359,9 @@ class SimVP_Experiment():
                     rmes_m.update(calc_rmse(test_pred_y, test_batch_y))
                     psnrs_m.update(calc_psnr(test_pred_y, test_batch_y))
 
-                results['inputs'].append(test_batch_x)
-                results['trues'].append(test_batch_y)
-                results['preds'].append(test_pred_y)
+                results['inputs'].extend(test_batch_x)
+                results['trues'].extend(test_batch_y)
+                results['preds'].extend(test_pred_y)
 
         if do_metrics:
             results['metrics'] = {
@@ -395,8 +395,11 @@ class SimVP_Experiment():
             assert result_data in results, f"Result data {result_data} not found in results"
 
             data = results[result_data]
+            print(len(data))
             for i in range(len(data)):
                 line = data[i]
+
+                print(line.shape)
 
                 unique_id = self.original_test_loader.dataset.data['samples'][i][0].split('/')[-2]
 
