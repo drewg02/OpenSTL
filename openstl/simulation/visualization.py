@@ -72,8 +72,15 @@ def plot_arrays(arrays, filename, rows=None, cols=None, wspace=10, hspace=10, dp
     fig, axarr = plt.subplots(rows, cols, figsize=figsize, dpi=dpi)
     axarr = np.array(axarr).reshape(rows, cols)
 
+    if cmaps:
+        multiple_cmaps = isinstance(cmaps, list)
+    else:
+        multiple_cmaps = False
+        cmaps = 'gray'
+    
     for idx, ax in enumerate(axarr.flat):
-        cmap = cmaps[idx] if cmaps and idx < len(cmaps) else 'gray'
+        cmap = cmaps[idx] if multiple_cmaps else cmaps
+
         kdx = idx // cols
         jdx = idx % cols
         ax.imshow(arrays[kdx][jdx], cmap=cmap, vmin=0, vmax=1)

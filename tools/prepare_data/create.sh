@@ -144,11 +144,11 @@ commands=(
         ${CHANCE:+--chance $CHANCE} \
         ${STATIC_CELLS_RANDOM:+--static_cells_random} \
         ${DYNAMIC_CELLS_RANDOM:+--dynamic_cells_random} \
-        ${INCREMENT:+--increment $INCREMENT} \
         --datafolder $DATAFOLDER"
 
     "python ./tools/prepare_data/gen_samples.py \
         ${TOTAL_SAMPLE_LENGTH:+--total_sample_length $TOTAL_SAMPLE_LENGTH} \
+        ${INCREMENT:+--increment $INCREMENT} \
         ${NORMALIZE:+--normalize} \
         --datafolder $DATAFOLDER"
 
