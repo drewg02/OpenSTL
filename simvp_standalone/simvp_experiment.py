@@ -277,11 +277,11 @@ class SimVP_Experiment():
                 test_batch_y = test_batch_y.cpu().numpy()
 
                 if do_metrics:
-                    ssims_m.update(calc_ssim(test_pred_y, test_batch_x))
-                    mses_m.update(calc_mse(test_pred_y, test_batch_x))
-                    maes_m.update(calc_mae(test_pred_y, test_batch_x))
-                    rmes_m.update(calc_rmse(test_pred_y, test_batch_x))
-                    psnrs_m.update(calc_psnr(test_pred_y, test_batch_x))
+                    ssims_m.update(calc_ssim(test_pred_y, test_batch_y))
+                    mses_m.update(calc_mse(test_pred_y, test_batch_y))
+                    maes_m.update(calc_mae(test_pred_y, test_batch_y))
+                    rmes_m.update(calc_rmse(test_pred_y, test_batch_y))
+                    psnrs_m.update(calc_psnr(test_pred_y, test_batch_y))
 
                 results['inputs'].append(test_batch_x)
                 results['trues'].append(test_batch_y)
