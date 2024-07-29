@@ -1,49 +1,151 @@
 import json
 import os
 import random
-from argparse import ArgumentParser
+import argparse
 from collections import OrderedDict
 from functools import partial
 from itertools import repeat
 from typing import Callable
+from typing import Tuple
+import cv2
+import platform
+import warnings
 
 import numpy as np
 import torch
+import torch.multiprocessing as mp
+from torch import distributed as dist
 from timm.data.distributed_sampler import OrderedDistributedSampler, RepeatAugSampler
+from .config_utils import Config
 
 from .simvp_dataset import SimVP_Dataset
 
 
 def create_parser():
-    parser = ArgumentParser(description='SimVP training')
-    parser.add_argument('--datafile_in', type=str, default=None, help='Path to the loader file')
-    parser.add_argument('--config_file', type=str, default=None, help='Path to the config file')
-    parser.add_argument('--ex_name', type=str, default=None, help='Experiment name')
-    parser.add_argument('--work_dirs', type=str, default='./work_dirs', help='Working directory')
-    parser.add_argument('--device', type=str, default='cuda', help='Device to use')
-    parser.add_argument('--spatio_kernel_enc', type=int, default=3, help='Spatial kernel size for encoder')
-    parser.add_argument('--spatio_kernel_dec', type=int, default=3, help='Spatial kernel size for decoder')
-    parser.add_argument('--hid_S', type=int, default=64, help='Hidden size for spatial encoder')
-    parser.add_argument('--hid_T', type=int, default=512, help='Hidden size for temporal encoder')
-    parser.add_argument('--N_T', type=int, default=8, help='Number of temporal layers')
-    parser.add_argument('--N_S', type=int, default=4, help='Number of spatial layers')
-    parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate')
-    parser.add_argument('--batch_size', type=int, default=16, help='Batch size')
-    parser.add_argument('--val_batch_size', type=int, default=16, help='Validation batch size')
-    parser.add_argument('--drop_path', type=float, default=0, help='Drop path rate')
-    parser.add_argument('--epochs', type=int, default=100, help='Number of epochs')
-    parser.add_argument('--use_gpu', default=True, action='store_true', help='Use GPU')
-    parser.add_argument('--dist', action='store_true', help='Use distributed training')
-    parser.add_argument('--pre_seq_length', type=int, default=10, help='Length of the input sequence')
-    parser.add_argument('--aft_seq_length', type=int, default=10, help='Length of the output sequence')
-    parser.add_argument('--test', action='store_true', help='Test the model')
-    parser.add_argument('--inference', action='store_true', help='Test the model')
-    parser.add_argument('--clip_grad', type=float, default=0, help='Gradient clipping value')
-    parser.add_argument('--clip_mode', type=str, default='norm', help='Gradient clipping mode')
-    parser.add_argument('--weight_decay', type=float, default=0, help='Weight decay')
-    parser.add_argument('--opt_eps', type=float, default=None, help='Optimizer epsilon')
-    parser.add_argument('--opt_betas', type=float, nargs='+', default=None, help='Optimizer betas')
-    parser.add_argument('--empty_cache', default=True, action='store_true', help='Empty cache')
+    parser = argparse.ArgumentParser(
+        description='OpenSTL train/test a model')
+    # Set-up parameters
+    parser.add_argument('--device', default='cuda', type=str,
+                        help='Name of device to use for tensor computations (cuda/cpu)')
+    parser.add_argument('--dist', action='store_true', default=False,
+                        help='Whether to use distributed training (DDP)')
+    parser.add_argument('--display_step', default=10, type=int,
+                        help='Interval in batches between display of training metrics')
+    parser.add_argument('--res_dir', default='work_dirs', type=str)
+    parser.add_argument('--ex_dir', default=None, type=str)
+    parser.add_argument('--ex_name', '-ex', default='Debug', type=str)
+    parser.add_argument('--use_gpu', default=True, type=bool)
+    parser.add_argument('--fp16', action='store_true', default=False,
+                        help='Whether to use Native AMP for mixed precision training (PyTorch=>1.6.0)')
+    parser.add_argument('--torchscript', action='store_true', default=False,
+                        help='Whether to use torchscripted model')
+    parser.add_argument('--seed', default=42, type=int)
+    parser.add_argument('--diff_seed', action='store_true', default=False,
+                        help='Whether to set different seeds for different ranks')
+    parser.add_argument('--fps', action='store_true', default=False,
+                        help='Whether to measure inference speed (FPS)')
+    parser.add_argument('--empty_cache', action='store_true', default=True,
+                        help='Whether to empty cuda cache after GPU training')
+    parser.add_argument('--find_unused_parameters', action='store_true', default=False,
+                        help='Whether to find unused parameters in forward during DDP training')
+    parser.add_argument('--broadcast_buffers', action='store_false', default=True,
+                        help='Whether to set broadcast_buffers to false during DDP training')
+    parser.add_argument('--resume_from', type=str, default=None, help='the checkpoint file to resume from')
+    parser.add_argument('--auto_resume', action='store_true', default=False,
+                        help='When training was interupted, resume from the latest checkpoint')
+    parser.add_argument('--test', action='store_true', default=False, help='Perform testing')
+    parser.add_argument('--inference', '-i', action='store_true', default=False, help='Only performs inference')
+    parser.add_argument('--deterministic', action='store_true', default=False,
+                        help='whether to set deterministic options for CUDNN backend (reproducable)')
+    parser.add_argument('--launcher', default='none', type=str,
+                        choices=['none', 'pytorch', 'slurm', 'mpi'],
+                        help='job launcher for distributed training')
+    parser.add_argument('--local-rank', type=int, default=0)
+    parser.add_argument('--port', type=int, default=29500,
+                        help='port only works when launcher=="slurm"')
+
+    # dataset parameters
+    parser.add_argument('--batch_size', '-b', default=16, type=int, help='Training batch size')
+    parser.add_argument('--val_batch_size', '-vb', default=16, type=int, help='Validation batch size')
+    parser.add_argument('--num_workers', default=4, type=int)
+    parser.add_argument('--data_root', default='./data')
+    parser.add_argument('--dataname', '-d', default='mmnist', type=str,
+                        help='Dataset name (default: "mmnist")')
+    parser.add_argument('--pre_seq_length', default=None, type=int, help='Sequence length before prediction')
+    parser.add_argument('--aft_seq_length', default=None, type=int, help='Sequence length after prediction')
+    parser.add_argument('--total_length', default=None, type=int, help='Total Sequence length for prediction')
+    parser.add_argument('--use_augment', action='store_true', default=False,
+                        help='Whether to use image augmentations for training')
+    parser.add_argument('--use_prefetcher', action='store_true', default=False,
+                        help='Whether to use prefetcher for faster data loading')
+    parser.add_argument('--drop_last', action='store_true', default=False,
+                        help='Whether to drop the last batch in the val data loading')
+
+    # method parameters
+    parser.add_argument('--method', '-m', default='SimVP', type=str,
+                        choices=['ConvLSTM', 'convlstm', 'CrevNet', 'crevnet', 'DMVFN', 'dmvfn', 'E3DLSTM', 'e3dlstm',
+                                 'MAU', 'mau', 'MIM', 'mim', 'PhyDNet', 'phydnet', 'PredNet', 'prednet',
+                                 'PredRNN', 'predrnn', 'PredRNNpp', 'predrnnpp', 'PredRNNv2', 'predrnnv2',
+                                 'SimVP', 'simvp', 'TAU', 'tau'],
+                        help='Name of video prediction method to train (default: "SimVP")')
+    parser.add_argument('--config_file', '-c', default=None, type=str,
+                        help='Path to the default config file')
+    parser.add_argument('--model_type', default=None, type=str,
+                        help='Name of model for SimVP (default: None)')
+    parser.add_argument('--drop', type=float, default=0.0, help='Dropout rate(default: 0.)')
+    parser.add_argument('--drop_path', type=float, default=0.0, help='Drop path rate for SimVP (default: 0.)')
+    parser.add_argument('--overwrite', action='store_true', default=False,
+                        help='Whether to allow overwriting the provided config file with args')
+
+    # Training parameters (optimizer)
+    parser.add_argument('--epoch', '-e', default=None, type=int, help='end epochs (default: 200)')
+    parser.add_argument('--checkpoint_interval', '-ci', default=None, type=int,
+                        help='Checkpoint save interval (default: None)')
+    parser.add_argument('--log_step', default=1, type=int, help='Log interval by step')
+    parser.add_argument('--opt', default='adam', type=str, metavar='OPTIMIZER',
+                        help='Optimizer (default: "adam"')
+    parser.add_argument('--opt_eps', default=None, type=float, metavar='EPSILON',
+                        help='Optimizer epsilon (default: None, use opt default)')
+    parser.add_argument('--opt_betas', default=None, type=float, nargs='+', metavar='BETA',
+                        help='Optimizer betas (default: None, use opt default)')
+    parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
+                        help='Optimizer sgd momentum (default: 0.9)')
+    parser.add_argument('--weight_decay', default=0., type=float, help='Weight decay')
+    parser.add_argument('--clip_grad', type=float, default=None, metavar='NORM',
+                        help='Clip gradient norm (default: None, no clipping)')
+    parser.add_argument('--clip_mode', type=str, default='norm',
+                        help='Gradient clipping mode. One of ("norm", "value", "agc")')
+    parser.add_argument('--early_stop_epoch', default=-1, type=int,
+                        help='Check to early stop after this epoch')
+    parser.add_argument('--no_display_method_info', action='store_true', default=False,
+                        help='Do not display method info')
+
+    # Training parameters (scheduler)
+    parser.add_argument('--sched', default=None, type=str, metavar='SCHEDULER',
+                        help='LR scheduler (default: "onecycle"')
+    parser.add_argument('--lr', default=None, type=float, help='Learning rate (default: 1e-3)')
+    parser.add_argument('--lr_k_decay', type=float, default=1.0,
+                        help='learning rate k-decay for cosine/poly (default: 1.0)')
+    parser.add_argument('--warmup_lr', type=float, default=1e-5, metavar='LR',
+                        help='warmup learning rate (default: 1e-5)')
+    parser.add_argument('--min_lr', type=float, default=1e-6, metavar='LR',
+                        help='lower lr bound for cyclic schedulers that hit 0 (1e-5)')
+    parser.add_argument('--final_div_factor', type=float, default=1e4,
+                        help='min_lr = initial_lr/final_div_factor for onecycle scheduler')
+    parser.add_argument('--warmup_epoch', type=int, default=0, metavar='N',
+                        help='epochs to warmup LR, if scheduler supports')
+    parser.add_argument('--decay_epoch', type=float, default=100, metavar='N',
+                        help='epoch interval to decay LR')
+    parser.add_argument('--decay_rate', '--dr', type=float, default=0.1, metavar='RATE',
+                        help='LR decay rate (default: 0.1)')
+    parser.add_argument('--filter_bias_and_bn', type=bool, default=False,
+                        help='Whether to set the weight decay of bias and bn to 0')
+
+    # Simulation parameters
+    parser.add_argument('--datafile_in', type=str, required=True,
+                        help='Specifies the input data file path.')
+    parser.add_argument('--saved_path', type=str, default=None,
+                        help='Specifies the path to save the results.')
 
     return parser
 
@@ -382,3 +484,195 @@ def measure_throughput(model, input_dummy):
             total_time += curr_time
     Throughput = (repetitions * bs) / total_time
     return Throughput
+
+
+def get_dist_info() -> Tuple[int, int]:
+    if dist.is_available() and dist.is_initialized():
+        rank = dist.get_rank()
+        world_size = dist.get_world_size()
+    else:
+        rank = 0
+        world_size = 1
+    return rank, world_size
+
+
+def generate_config(args, metrics=None):
+    if not metrics:
+        metrics = ['mse', 'mae', 'ssim']
+
+    pre_seq_length = args.pre_seq_length
+    aft_seq_length = args.aft_seq_length
+
+    with open(args.datafile_in, 'r') as f:
+        data = json.load(f)
+
+        key = 'train' if data.get('train') else 'test'
+
+        example_sample = np.load(data[key]['samples'][0][0])
+        sample_shape = example_sample.shape
+
+        channels = len(sample_shape) > 2 and sample_shape[0] or 1
+        image_height = sample_shape[-2]
+        image_width = sample_shape[-1]
+
+    training_config = {
+        'pre_seq_length': pre_seq_length,
+        'aft_seq_length': aft_seq_length,
+        'total_length': pre_seq_length + aft_seq_length,
+        'batch_size': args.batch_size,
+        'val_batch_size': args.val_batch_size,
+        'epoch': args.epoch,
+        'lr': args.lr,
+        'metrics': metrics,
+
+        'ex_name': args.ex_name,
+        'dataname': 'simulation',
+        'in_shape': [pre_seq_length, channels, image_height, image_width],
+    }
+
+    return training_config
+
+def load_config(filename:str = None):
+    """load and print config"""
+    print('loading config from ' + filename + ' ...')
+    try:
+        configfile = Config(filename=filename)
+        config = configfile._cfg_dict
+    except (FileNotFoundError, IOError):
+        config = dict()
+        print('warning: fail to load the config!')
+    return config
+
+
+def update_config(args, config, exclude_keys=list()):
+    """update the args dict with a new config"""
+    assert isinstance(args, dict) and isinstance(config, dict)
+    for k in config.keys():
+        if args.get(k, False):
+            if args[k] != config[k] and k not in exclude_keys and args[k] is not None:
+                print(f'overwrite config key -- {k}: {config[k]} -> {args[k]}')
+            else:
+                args[k] = config[k]
+        else:
+            args[k] = config[k]
+    return args
+
+def setup_multi_processes(cfg):
+    """Setup multi-processing environment variables."""
+    # set multi-process start method as `fork` to speed up the training
+    if platform.system() != 'Windows':
+        mp_start_method = cfg.get('mp_start_method', 'fork')
+        current_method = mp.get_start_method(allow_none=True)
+        if current_method is not None and current_method != mp_start_method:
+            warnings.warn(
+                f'Multi-processing start method `{mp_start_method}` is '
+                f'different from the previous setting `{current_method}`.'
+                f'It will be force set to `{mp_start_method}`. You can change '
+                f'this behavior by changing `mp_start_method` in your config.')
+        mp.set_start_method(mp_start_method, force=True)
+
+    # disable opencv multithreading to avoid system being overloaded
+    opencv_num_threads = cfg.get('opencv_num_threads', 0)
+    cv2.setNumThreads(opencv_num_threads)
+
+    # setup OMP threads
+    # This code is referred from https://github.com/pytorch/pytorch/blob/master/torch/distributed/run.py  # noqa
+    if 'OMP_NUM_THREADS' not in os.environ and cfg['num_workers'] > 1:
+        omp_num_threads = 1
+        warnings.warn(
+            f'Setting OMP_NUM_THREADS environment variable for each process '
+            f'to be {omp_num_threads} in default, to avoid your system being '
+            f'overloaded, please further tune the variable for optimal '
+            f'performance in your application as needed.')
+        os.environ['OMP_NUM_THREADS'] = str(omp_num_threads)
+
+    # setup MKL threads
+    if 'MKL_NUM_THREADS' not in os.environ and cfg['num_workers'] > 1:
+        mkl_num_threads = 1
+        warnings.warn(
+            f'Setting MKL_NUM_THREADS environment variable for each process '
+            f'to be {mkl_num_threads} in default, to avoid your system being '
+            f'overloaded, please further tune the variable for optimal '
+            f'performance in your application as needed.')
+        os.environ['MKL_NUM_THREADS'] = str(mkl_num_threads)
+
+def _init_dist_pytorch(backend: str, **kwargs) -> None:
+    # TODO: use local_rank instead of rank % num_gpus
+    # rank = int(os.environ['RANK'])
+    # num_gpus = torch.cuda.device_count()
+    # torch.cuda.set_device(rank % num_gpus)
+    local_rank = int(os.environ['LOCAL_RANK'])
+    torch.cuda.set_device(local_rank)
+    dist.init_process_group(backend=backend, **kwargs)
+
+
+def _init_dist_mpi(backend: str, **kwargs) -> None:
+    local_rank = int(os.environ['OMPI_COMM_WORLD_LOCAL_RANK'])
+    torch.cuda.set_device(local_rank)
+    if 'MASTER_PORT' not in os.environ:
+        # 29500 is torch.distributed default port
+        os.environ['MASTER_PORT'] = '29500'
+    if 'MASTER_ADDR' not in os.environ:
+        raise KeyError('The environment variable MASTER_ADDR is not set')
+    os.environ['WORLD_SIZE'] = os.environ['OMPI_COMM_WORLD_SIZE']
+    os.environ['RANK'] = os.environ['OMPI_COMM_WORLD_RANK']
+    dist.init_process_group(backend=backend, **kwargs)
+
+def init_dist(launcher: str, backend: str = 'nccl', **kwargs) -> None:
+    if mp.get_start_method(allow_none=True) is None:
+        mp.set_start_method('spawn')
+    if launcher == 'pytorch':
+        _init_dist_pytorch(backend, **kwargs)
+    elif launcher == 'mpi':
+        _init_dist_mpi(backend, **kwargs)
+    else:
+        raise ValueError(f'Invalid launcher type: {launcher}')
+
+def init_random_seed(seed=None, device='cuda'):
+    """Initialize random seed.
+
+    If the seed is not set, the seed will be automatically randomized,
+    and then broadcast to all processes to prevent some potential bugs.
+    Args:
+        seed (int, Optional): The seed. Default to None.
+        device (str): The device where the seed will be put on.
+            Default to 'cuda'.
+    Returns:
+        int: Seed to be used.
+    """
+    if seed is not None:
+        return seed
+
+    # Make sure all ranks share the same random seed to prevent
+    # some potential bugs. Please refer to
+    # https://github.com/open-mmlab/mmdetection/issues/6339
+    rank, world_size = get_dist_info()
+    seed = np.random.randint(2**31)
+    if world_size == 1:
+        return seed
+
+    if rank == 0:
+        random_num = torch.tensor(seed, dtype=torch.int32, device=device)
+    else:
+        random_num = torch.tensor(0, dtype=torch.int32, device=device)
+    dist.broadcast(random_num, src=0)
+    return random_num.item()
+
+def set_seed(seed, deterministic=False):
+    """Set random seed.
+
+    Args:
+        seed (int): Seed to be used.
+        deterministic (bool): Whether to set the deterministic option for
+            CUDNN backend, i.e., set `torch.backends.cudnn.deterministic`
+            to True and `torch.backends.cudnn.benchmark` to False.
+            Default: False.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if deterministic:
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+    else:
+        torch.backends.cudnn.benchmark = True

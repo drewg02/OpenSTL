@@ -8,41 +8,102 @@ import numpy as np
 import torch
 from fvcore.nn import FlopCountAnalysis, flop_count_table
 from torch import nn
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as NativeDDP
+from timm.utils import NativeScaler
 
 from .simvp_metrics import calc_ssim, calc_mse, calc_mae, calc_rmse, calc_psnr
 from .simvp_model import SimVP_Model
-from .simvp_utils import create_dataloaders, AverageMeter, format_seconds, measure_throughput, weights_to_cpu
+from .simvp_utils import create_dataloaders, AverageMeter, format_seconds, measure_throughput, weights_to_cpu, get_dist_info, init_dist, set_seed, init_random_seed
 
 try:
     import nni
-
     has_nni = True
 except ImportError:
     has_nni = False
 
+has_native_amp = False
+try:
+    if getattr(torch.cuda.amp, 'autocast') is not None:
+        has_native_amp = True
+except AttributeError:
+    pass
+
 
 class SimVP_Experiment():
+    _dist = False
+
     def __init__(self, args, dataloaders=None):
         self.args = args
         self.device = self.args.device
 
-        self.path = self.args.work_dir
+        self.path = os.path.join(self.args.res_dir, self.args.ex_dir)
         if not osp.exists(self.path):
             os.makedirs(self.path)
 
         self.model_path = osp.join(self.path, 'simvp_model.pth')
         self.save_dir = osp.join(self.path, 'saved')
 
+        self._preparation(dataloaders)
+
+    def _acquire_device(self):
+        self._use_gpu = self.args.use_gpu and torch.cuda.is_available()
+
+        if self.args.dist and not self._use_gpu:
+            assert False, "Distributed training requires GPUs"
+
+        if self._use_gpu:
+            device = f'cuda:{self.args.local_rank if self.args.dist else 0}'
+            if self.args.dist:
+                torch.cuda.set_device(self.args.local_rank)
+                print(f'Use distributed mode with GPUs: local rank={self.args.local_rank}')
+            else:
+                print(f'Use non-distributed mode with GPU: {device}')
+        else:
+            device = 'cpu'
+            print('No GPU available, defaulting to CPU' if self.args.use_gpu else 'Use CPU')
+
+        return torch.device(device)
+
+    def _preparation(self, dataloaders=None):
+        if 'LOCAL_RANK' not in os.environ:
+            os.environ['LOCAL_RANK'] = str(self.args.local_rank)
+
+        if self.args.launcher != 'none' or self.args.dist:
+            self._dist = True
+
+        if self._dist:
+            assert self.args.launcher != 'none'
+            dist_params = dict(backend='nccl', init_method='env://')
+            if self.args.launcher == 'slurm':
+                dist_params['port'] = self.args.port
+            init_dist(self.args.launcher, **dist_params)
+            self._rank, self._world_size = get_dist_info()
+
+            self._gpu_ids = range(self._world_size)
+
+        if self._dist:
+            seed = init_random_seed(self.args.seed)
+            seed = seed + dist.get_rank() if self.args.diff_seed else seed
+        else:
+            seed = self.args.seed
+        set_seed(seed)
+
         self._acquire_device()
         self._get_data(dataloaders)
 
         self._epoch = None
-        self._max_epochs = self.args.epochs
+        self._max_epochs = self.args.epoch
         self._steps_per_epoch = len(self.train_loader)
         self._total_steps = self._max_epochs * self._steps_per_epoch
 
-        self.args.in_shape = (self.args.pre_seq_length, *next(iter(self.train_loader))[0].shape[2:])
         self.model = SimVP_Model(**self.args.__dict__).to(self.device)
+
+        if self._dist:
+            self.model.cuda()
+            if self.args.torchscript:
+                self.model = torch.jit.script(self.model)
+            self._init_distributed()
 
         opt_args = {
             'weight_decay': 0,
@@ -63,29 +124,24 @@ class SimVP_Experiment():
 
         self.criterion = nn.MSELoss()
 
-        for key, value in self.args.__dict__.items():
-            print(f"{key}: {value}")
+        if self._rank == 0:
+            for key, value in self.args.__dict__.items():
+                print(f"{key}: {value}")
 
-        self.display_method_info()
+            self.display_method_info()
 
-    def _acquire_device(self):
-        self._use_gpu = self.args.use_gpu and torch.cuda.is_available()
-
-        if self.args.dist and not self._use_gpu:
-            assert False, "Distributed training requires GPUs"
-
-        if self._use_gpu:
-            device = f'cuda:{self.args.local_rank if self.args.dist else 0}'
-            if self.args.dist:
-                torch.cuda.set_device(self.args.local_rank)
-                print(f'Use distributed mode with GPUs: local rank={self.args.local_rank}')
-            else:
-                print(f'Use non-distributed mode with GPU: {device}')
+    def _init_distributed(self):
+        """Initialize DDP training"""
+        if self.args.fp16 and has_native_amp:
+            self.amp_autocast = torch.cuda.amp.autocast
+            self.loss_scaler = NativeScaler()
+            if self._rank == 0:
+                print('Using native PyTorch AMP. Training in mixed precision (fp16).')
         else:
-            device = 'cpu'
-            print('No GPU available, defaulting to CPU' if self.args.use_gpu else 'Use CPU')
-
-        return torch.device(device)
+            print('AMP not enabled. Training in float32.')
+        self.model = NativeDDP(self.model, device_ids=[self.args.local_rank],
+                               broadcast_buffers=self.args.broadcast_buffers,
+                               find_unused_parameters=self.args.find_unused_parameters)
 
     def _get_data(self, dataloaders=None):
         """Prepare datasets and dataloaders"""
@@ -119,7 +175,8 @@ class SimVP_Experiment():
         saved_model = {
             'epoch': self._epoch + 1,
             'optimizer': self.optimizer.state_dict(),
-            'state_dict': weights_to_cpu(self.model.state_dict()),
+            'state_dict': weights_to_cpu(self.model.state_dict()) \
+                if not self._dist else weights_to_cpu(self.model.module.state_dict()),
             'scheduler': self.scheduler.state_dict()}
 
         torch.save(saved_model, load_path)
@@ -142,7 +199,13 @@ class SimVP_Experiment():
             self.scheduler.load_state_dict(loaded_model['scheduler'])
 
     def _load_from_state_dict(self, state_dict):
-        self.model.load_state_dict(state_dict)
+        if self._dist:
+            try:
+                self.model.module.load_state_dict(state_dict)
+            except:
+                self.model.load_state_dict(state_dict)
+        else:
+            self.model.load_state_dict(state_dict)
 
     def _predict(self, pre_seq_length, aft_seq_length, batch_x):
         if aft_seq_length == pre_seq_length:
@@ -186,7 +249,10 @@ class SimVP_Experiment():
         best_loss = float('inf')
         start_time = time.time()
 
-        for epoch in range(self.args.epochs):
+        for epoch in range(self.args.epoch):
+            if self._dist and hasattr(self.train_loader.sampler, 'set_epoch'):
+                self.train_loader.sampler.set_epoch(epoch)
+
             self._epoch = epoch
 
             losses_m = AverageMeter()
@@ -233,7 +299,7 @@ class SimVP_Experiment():
                     rmes_m.update(calc_rmse(val_pred_y.cpu().numpy(), val_batch_y.cpu().numpy()))
                     psnrs_m.update(calc_psnr(val_pred_y.cpu().numpy(), val_batch_y.cpu().numpy()))
 
-                if val_losses_m.avg < best_loss:
+                if self._rank == 0 and val_losses_m.avg < best_loss:
                     best_loss = val_losses_m.avg
 
                     print(f'Lowest loss found... Saving best model to {self.model_path}')
@@ -242,14 +308,16 @@ class SimVP_Experiment():
             if self._use_gpu and self.args.empty_cache:
                 torch.cuda.empty_cache()
 
-            lr = np.mean(np.array([group['lr'] for group in self.optimizer.param_groups]))
-            print('Epoch: {0}/{1}, Steps: {2} | Lr: {3:.7f} | Train Loss: {4:.7f} | Vali Loss: {5:.7f}'.format(
-                epoch + 1, self._max_epochs, len(self.train_loader), lr, losses_m.avg, val_losses_m.avg))
-            print(
-                f"val ssim: {ssims_m.avg}, mse: {mses_m.avg}, mae: {maes_m.avg}, rmse: {rmes_m.avg}, psnr: {psnrs_m.avg}\n")
+            if self._rank == 0:
+                lr = np.mean(np.array([group['lr'] for group in self.optimizer.param_groups]))
+                print('Epoch: {0}/{1}, Steps: {2} | Lr: {3:.7f} | Train Loss: {4:.7f} | Vali Loss: {5:.7f}'.format(
+                    epoch + 1, self._max_epochs, len(self.train_loader), lr, losses_m.avg, val_losses_m.avg))
+                print(
+                    f"val ssim: {ssims_m.avg}, mse: {mses_m.avg}, mae: {maes_m.avg}, rmse: {rmes_m.avg}, psnr: {psnrs_m.avg}\n")
 
-        elapsed_time = time.time() - start_time
-        print(f'Training time: {format_seconds(elapsed_time)}')
+        if self._rank == 0:
+            elapsed_time = time.time() - start_time
+            print(f'Training time: {format_seconds(elapsed_time)}')
 
     def test(self, save_files=True, do_metrics=True):
         print(f"Loading model from {self.model_path}")
@@ -296,9 +364,10 @@ class SimVP_Experiment():
                 'psnr': psnrs_m.avg
             }
 
-        print(f"ssim: {ssims_m.avg}, mse: {mses_m.avg}, mae: {maes_m.avg}, rmse: {rmes_m.avg}, psnr: {psnrs_m.avg}")
-        if save_files:
-            self.save_results(results, self.save_dir)
+        if self._rank == 0:
+            print(f"ssim: {ssims_m.avg}, mse: {mses_m.avg}, mae: {maes_m.avg}, rmse: {rmes_m.avg}, psnr: {psnrs_m.avg}")
+            if save_files:
+                self.save_results(results, self.save_dir)
 
         return results['metrics'] if do_metrics else None, {key: results[key] for key in
                                                             ['inputs', 'trues', 'preds']} if not save_files else None
