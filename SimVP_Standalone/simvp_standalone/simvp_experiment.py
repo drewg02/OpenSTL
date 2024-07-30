@@ -395,11 +395,8 @@ class SimVP_Experiment():
             assert result_data in results, f"Result data {result_data} not found in results"
 
             data = results[result_data]
-            print(len(data))
             for i in range(len(data)):
                 line = data[i]
-
-                print(line.shape)
 
                 unique_id = self.original_test_loader.dataset.data['samples'][i][0].split('/')[-2]
 
