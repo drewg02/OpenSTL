@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 from tqdm import tqdm
+from perlin_numpy import generate_perlin_noise_2d
 
 from openstl.simulation.experiment_recorder import generate_unique_id
 from openstl.simulation.preparation import normalize_data_min_max
@@ -9,8 +10,38 @@ from openstl.simulation.utils import get_simulation_class
 from .array_type import ArrayType
 
 
+def generate_thresholded_perlin_noise(size, octaves, threshold=0.5):
+    """
+    Generates a thresholded Perlin noise array.
+
+    Parameters:
+        size (int): The dimensions of the noise array (size x size).
+        octaves (int): Number of octaves for the Perlin noise.
+        threshold (float): Threshold value to binarize the noise.
+
+    Returns:
+        np.ndarray: Thresholded Perlin noise array.
+    """
+    noise = generate_perlin_noise_2d((size, size), (octaves, octaves))
+    noise[noise < threshold] = 0
+    noise[noise >= threshold] = 1
+    return noise
+
+def normalize_noise(noise):
+    """
+    Normalizes the noise array to the range [0, 1].
+
+    Parameters:
+        noise (np.ndarray): The noise array to be normalized.
+
+    Returns:
+        np.ndarray: Normalized noise array.
+    """
+    return (noise - np.min(noise)) / (np.max(noise) - np.min(noise))
+
 def update_array(array, mask, array_type, vmin=0.0, vmax=1.0, thickness=1, chance=0.2,
-                 static_cells_random=False, dynamic_cells_random=False):
+                 static_cells_random=False, dynamic_cells_random=False, perlin_size=64, perlin_octaves=4,
+                 perlin_threshold1=0.5, perlin_threshold2=0.1, accumulations=4):
     """
     Updates the array and mask based on the array type.
 
@@ -24,6 +55,11 @@ def update_array(array, mask, array_type, vmin=0.0, vmax=1.0, thickness=1, chanc
     - chance: Probability used for RANDOM and RANDOM_UNIFORM array types.
     - static_cells_random: For RANDOM array type. When True it fills the array with random values instead of the vmax where the mask is 1.
     - dynamic_cells_random: For RANDOM array type. When True it fills the array with random values instead of the vmin where the mask is 1.
+    - perlin_size: Size of the Perlin noise array.
+    - perlin_octaves: Number of octaves for the Perlin noise.
+    - perlin_threshold1: First threshold value for Perlin noise.
+    - perlin_threshold2: Second threshold value for final binarization.
+    - accumulations: Number of times to accumulate Perlin noise.
 
     Returns:
     - The final array and mask after updating.
@@ -34,6 +70,7 @@ def update_array(array, mask, array_type, vmin=0.0, vmax=1.0, thickness=1, chanc
         print(f"Chance was None (or <= 0) - so this initial condition we will use randomly chosen chance of: {chance}")
 
     rows, cols = array.shape
+
     if array_type == ArrayType.OUTLINE:
         array[:thickness, :] = array[-thickness:, :] = array[:, :thickness] = array[:, -thickness:] = vmax
         mask[:thickness, :] = mask[-thickness:, :] = mask[:, :thickness] = mask[:, -thickness:] = 1
@@ -60,6 +97,16 @@ def update_array(array, mask, array_type, vmin=0.0, vmax=1.0, thickness=1, chanc
     elif array_type == ArrayType.RANDOM_UNIFORM:
         array[:] = np.random.uniform(vmin, vmax, size=(rows, cols))
         mask[:] = np.random.choice([0, 1], size=(rows, cols), p=[1 - chance, chance])
+
+    elif array_type == ArrayType.PERLIN:
+        noise = np.zeros((perlin_size, perlin_size))
+        for i in range(accumulations):
+            noise += generate_thresholded_perlin_noise(perlin_size, perlin_octaves, perlin_threshold1)
+        noise = normalize_noise(noise)
+        noise[noise < perlin_threshold2] = 0
+        noise[noise >= perlin_threshold2] = 1
+        array[:perlin_size, :perlin_size] = noise
+        mask[:perlin_size, :perlin_size] = noise
 
     else:
         raise ValueError(f"Invalid array type: {array_type}")

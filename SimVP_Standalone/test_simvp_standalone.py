@@ -45,8 +45,8 @@ if __name__ == '__main__':
 
     setup_multi_processes(config)
 
-    # Print the dist info saying its the dist info
-    print(f"Dist info: rank={rank}, world_size={world_size}")
+    if args.dist:
+        print(f"Dist info: rank={rank}, world_size={world_size}")
 
     if config['inference'] and not config['test']:
         print('>' * 35 + f' inferencing {args.ex_name}  ' + '<' * 35)

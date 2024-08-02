@@ -11,6 +11,7 @@ from torch import nn
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as NativeDDP
 from timm.utils import NativeScaler
+from tqdm import tqdm
 
 from .simvp_metrics import calc_ssim, calc_mse, calc_mae, calc_rmse, calc_psnr
 from .simvp_model import SimVP_Model
@@ -132,7 +133,7 @@ class SimVP_Experiment():
 
         self.criterion = nn.MSELoss()
 
-        if self._rank == 0:
+        if self._rank == 0 and not self.args.no_display_method_info:
             for key, value in self.args.__dict__.items():
                 print(f"{key}: {value}")
 
@@ -273,7 +274,13 @@ class SimVP_Experiment():
 
             self.model.train()
 
-            for batch_x, batch_y in self.train_loader:
+            train_pbar = tqdm(self.train_loader) if self.args.pbar and self._rank == 0 else self.train_loader
+
+            data_time_m = AverageMeter()
+            data_time = time.time()
+            for batch_x, batch_y in train_pbar:
+                data_time_m.update(time.time() - data_time)
+
                 batch_x = batch_x.to(self.device)
                 batch_y = batch_y.to(self.device)
 
@@ -281,7 +288,8 @@ class SimVP_Experiment():
                 pred_y = self._predict(self.args.pre_seq_length, self.args.aft_seq_length, batch_x)
                 loss = self.criterion(pred_y, batch_y)
 
-                losses_m.update(loss.item())
+                loss_item = loss.item()
+                losses_m.update(loss_item)
 
                 loss.backward()
                 self.optimizer.step()
@@ -289,6 +297,11 @@ class SimVP_Experiment():
                 torch.cuda.synchronize()
 
                 self.scheduler.step()
+
+                if self._rank == 0:
+                    log_buffer = 'train loss: {:.4f}'.format(loss_item)
+                    log_buffer += ' | data time: {:.4f}'.format(data_time_m.avg)
+                    train_pbar.set_description(log_buffer)
 
             self.model.eval()
             with torch.no_grad():
@@ -311,7 +324,7 @@ class SimVP_Experiment():
                     best_loss = val_losses_m.avg
 
                     print(f'Lowest loss found... Saving best model to {self.model_path}')
-                    torch.save(self.model.state_dict(), self.model_path)
+                    torch.save(self.model.state_dict(), str(self.model_path))
 
             if self._use_gpu and self.args.empty_cache:
                 torch.cuda.empty_cache()
@@ -327,9 +340,12 @@ class SimVP_Experiment():
             elapsed_time = time.time() - start_time
             print(f'Training time: {format_seconds(elapsed_time)}')
 
-    def test(self, save_files=True, do_metrics=True):
+    def test(self, save_files=True, save_dir=None, do_metrics=True):
         print(f"Loading model from {self.model_path}")
-        self._load_from_state_dict(torch.load(self.model_path))
+        self._load_from_state_dict(torch.load(str(self.model_path)))
+
+        if save_dir is None:
+            save_dir = self.save_dir
 
         self.model.eval()
 
@@ -375,13 +391,13 @@ class SimVP_Experiment():
         if self._rank == 0:
             print(f"ssim: {ssims_m.avg}, mse: {mses_m.avg}, mae: {maes_m.avg}, rmse: {rmes_m.avg}, psnr: {psnrs_m.avg}")
             if save_files:
-                self.save_results(results, self.save_dir)
+                self.save_results(results, save_dir)
 
         return results['metrics'] if do_metrics else None, {key: results[key] for key in
                                                             ['inputs', 'trues', 'preds']} if not save_files else None
 
-    def inference(self, save_dir=None, save_files=True):
-        return self.test(save_files=save_files, do_metrics=False)
+    def inference(self, save_files=True, save_dir=None):
+        return self.test(save_files, save_dir, False)
 
     def save_results(self, results, save_dir=None):
         folder_path = save_dir if save_dir else self.save_dir

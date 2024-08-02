@@ -146,6 +146,7 @@ def create_parser():
                         help='Specifies the input data file path.')
     parser.add_argument('--saved_path', type=str, default=None,
                         help='Specifies the path to save the results.')
+    parser.add_argument('--pbar', action='store_true', default=False, help='Show progress bar')
 
     return parser
 

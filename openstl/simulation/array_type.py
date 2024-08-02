@@ -7,3 +7,4 @@ class ArrayType(str, Enum):
     PLUS = 'plus'
     RANDOM = 'random'
     RANDOM_UNIFORM = 'random_uniform'
+    PERLIN = 'perlin'

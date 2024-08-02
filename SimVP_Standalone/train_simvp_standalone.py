@@ -1,10 +1,11 @@
 import os.path as osp
+import time
 import warnings
 warnings.filterwarnings('ignore')
 
 from simvp_standalone.experiment_recorder import generate_unique_id
 from simvp_standalone.simvp_experiment import SimVP_Experiment
-from simvp_standalone.simvp_utils import create_parser, get_dist_info, generate_config, update_config, load_config, setup_multi_processes
+from simvp_standalone.simvp_utils import create_parser, get_dist_info, generate_config, update_config, load_config, setup_multi_processes, format_seconds
 
 
 try:
@@ -15,6 +16,8 @@ except ImportError:
     has_nni = False
 
 if __name__ == '__main__':
+    start_time = time.time()
+
     args = create_parser().parse_args()
 
     training_config = generate_config(args)
@@ -57,3 +60,7 @@ if __name__ == '__main__':
 
     if rank == 0 and has_nni and 'mse' in eval_res:
         nni.report_final_result(eval_res['mse'])
+
+    if rank == 0:
+        elapsed_time = time.time() - start_time
+        print(f'Total time: {format_seconds(elapsed_time)}')
