@@ -598,10 +598,6 @@ def setup_multi_processes(cfg):
         os.environ['MKL_NUM_THREADS'] = str(mkl_num_threads)
 
 def _init_dist_pytorch(backend: str, **kwargs) -> None:
-    # TODO: use local_rank instead of rank % num_gpus
-    # rank = int(os.environ['RANK'])
-    # num_gpus = torch.cuda.device_count()
-    # torch.cuda.set_device(rank % num_gpus)
     local_rank = int(os.environ['LOCAL_RANK'])
     torch.cuda.set_device(local_rank)
     dist.init_process_group(backend=backend, **kwargs)

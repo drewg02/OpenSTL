@@ -47,6 +47,8 @@ class SimVP_Experiment():
         self.model_path = osp.join(self.path, 'simvp_model.pth')
         self.save_dir = osp.join(self.path, 'saved')
 
+        self.local_rank = int(os.environ['LOCAL_RANK'])
+
         self._preparation(dataloaders)
 
     def __del__(self):
@@ -62,10 +64,10 @@ class SimVP_Experiment():
             assert False, "Distributed training requires GPUs"
 
         if self._use_gpu:
-            device = f'cuda:{self.args.local_rank if self.args.dist else 0}'
+            device = f'cuda:{self.local_rank if self.args.dist else 0}'
             if self.args.dist:
-                torch.cuda.set_device(self.args.local_rank)
-                print(f'Use distributed mode with GPUs: local rank={self.args.local_rank}')
+                torch.cuda.set_device(self.local_rank)
+                print(f'Use distributed mode with GPUs: local rank={self.local_rank}')
             else:
                 print(f'Use non-distributed mode with GPU: {device}')
         else:
@@ -75,9 +77,6 @@ class SimVP_Experiment():
         return torch.device(device)
 
     def _preparation(self, dataloaders=None):
-        if 'LOCAL_RANK' not in os.environ:
-            os.environ['LOCAL_RANK'] = str(self.args.local_rank)
-
         if self.args.launcher != 'none' or self.args.dist:
             self._dist = True
 
