@@ -41,7 +41,7 @@ class SimVP_Experiment():
         self._world_size = 1
 
         self.path = os.path.join(self.args.res_dir, self.args.ex_dir)
-        if not osp.exists(self.path):
+        if self._rank == 0 and not osp.exists(self.path):
             os.makedirs(self.path)
 
         self.model_path = osp.join(self.path, 'simvp_model.pth')
@@ -298,7 +298,7 @@ class SimVP_Experiment():
 
                 self.scheduler.step()
 
-                if self._rank == 0:
+                if self._rank == 0 and self.args.pbar:
                     log_buffer = 'train loss: {:.4f}'.format(loss_item)
                     log_buffer += ' | data time: {:.4f}'.format(data_time_m.avg)
                     train_pbar.set_description(log_buffer)
