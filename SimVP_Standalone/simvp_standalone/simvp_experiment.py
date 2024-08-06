@@ -41,8 +41,8 @@ class SimVP_Experiment():
         self._world_size = 1
 
         self.path = os.path.join(self.args.res_dir, self.args.ex_dir)
-        if self._rank == 0 and not osp.exists(self.path):
-            os.makedirs(self.path)
+        if not osp.exists(self.path):
+            os.makedirs(self.path, exist_ok=False)
 
         self.model_path = osp.join(self.path, 'simvp_model.pth')
         self.save_dir = osp.join(self.path, 'saved')
@@ -401,7 +401,7 @@ class SimVP_Experiment():
     def save_results(self, results, save_dir=None):
         folder_path = save_dir if save_dir else self.save_dir
         if not osp.exists(folder_path):
-            os.makedirs(folder_path)
+            os.makedirs(folder_path, exist_ok=False)
 
         if 'metrics' in results:
             np.save(osp.join(folder_path, 'metrics.npy'), results['metrics'])
@@ -417,7 +417,7 @@ class SimVP_Experiment():
 
                 save_path = osp.join(folder_path, result_data, unique_id)
                 if not osp.exists(save_path):
-                    os.makedirs(save_path)
+                    os.makedirs(save_path, exist_ok=False)
 
                 for j in range(len(line)):
                     file_path = osp.join(str(save_path), f'{j}.npy')
