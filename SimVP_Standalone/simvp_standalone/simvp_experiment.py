@@ -147,7 +147,7 @@ class SimVP_Experiment():
                 print('Using native PyTorch AMP. Training in mixed precision (fp16).')
         else:
             print('AMP not enabled. Training in float32.')
-        self.model = NativeDDP(self.model, device_ids=[self.args.local_rank],
+        self.model = NativeDDP(self.model, device_ids=[self.local_rank],
                                broadcast_buffers=self.args.broadcast_buffers,
                                find_unused_parameters=self.args.find_unused_parameters)
 
