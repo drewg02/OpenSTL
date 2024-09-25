@@ -37,17 +37,16 @@ class SimVP_Experiment():
     def __init__(self, args, dataloaders=None):
         self.args = args
         self.device = self.args.device
-        self._rank = 0
-        self._world_size = 1
+        self.rank = 0
+        self.world_size = 1
+        self.local_rank = int(os.environ['LOCAL_RANK'])
 
         self.path = os.path.join(self.args.res_dir, self.args.ex_dir)
-        if not osp.exists(self.path):
+        if self.rank == 0 and self.local_rank == 0:
             os.makedirs(self.path, exist_ok=True)
 
         self.model_path = osp.join(self.path, 'simvp_model.pth')
         self.save_dir = osp.join(self.path, 'saved')
-
-        self.local_rank = int(os.environ['LOCAL_RANK'])
 
         self._preparation(dataloaders)
 
@@ -58,16 +57,21 @@ class SimVP_Experiment():
             print(f"Failed to destroy process group: {e}")
 
     def _acquire_device(self):
+        """Setup devices"""
+        if self.args.device is not None:
+            print(f'Use device: {self.args.device}')
+            return torch.device(self.args.device)
+
         self._use_gpu = self.args.use_gpu and torch.cuda.is_available()
 
         if self.args.dist and not self._use_gpu:
             assert False, "Distributed training requires GPUs"
 
-        if self._use_gpu:
-            device = f'cuda:{self.local_rank if self.args.dist else 0}'
+        if self._use_gpu and torch.cuda.is_available():
+            device = f'cuda:{self.args.local_rank if self.args.dist else 0}'
             if self.args.dist:
-                torch.cuda.set_device(self.local_rank)
-                print(f'Use distributed mode with GPUs: local rank={self.local_rank}')
+                torch.cuda.set_device(self.args.local_rank)
+                print(f'Use distributed mode with GPUs: local rank={self.args.local_rank}')
             else:
                 print(f'Use non-distributed mode with GPU: {device}')
         else:
@@ -77,6 +81,7 @@ class SimVP_Experiment():
         return torch.device(device)
 
     def _preparation(self, dataloaders=None):
+        print(self.args.use_gpu)
         if self.args.launcher != 'none' or self.args.dist:
             self._dist = True
 
@@ -86,9 +91,9 @@ class SimVP_Experiment():
             if self.args.launcher == 'slurm':
                 dist_params['port'] = self.args.port
             init_dist(self.args.launcher, **dist_params)
-            self._rank, self._world_size = get_dist_info()
+            self.rank, self.world_size = get_dist_info()
 
-            self._gpu_ids = range(self._world_size)
+            self._gpu_ids = range(self.world_size)
 
         if self._dist:
             seed = init_random_seed(self.args.seed)
@@ -132,7 +137,7 @@ class SimVP_Experiment():
 
         self.criterion = nn.MSELoss()
 
-        if self._rank == 0 and not self.args.no_display_method_info:
+        if self.rank == 0 and not self.args.no_display_method_info:
             for key, value in self.args.__dict__.items():
                 print(f"{key}: {value}")
 
@@ -143,7 +148,7 @@ class SimVP_Experiment():
         if self.args.fp16 and has_native_amp:
             self.amp_autocast = torch.cuda.amp.autocast
             self.loss_scaler = NativeScaler()
-            if self._rank == 0:
+            if self.rank == 0:
                 print('Using native PyTorch AMP. Training in mixed precision (fp16).')
         else:
             print('AMP not enabled. Training in float32.')
@@ -273,7 +278,7 @@ class SimVP_Experiment():
 
             self.model.train()
 
-            train_pbar = tqdm(self.train_loader) if self.args.pbar and self._rank == 0 else self.train_loader
+            train_pbar = tqdm(self.train_loader) if self.args.pbar and self.rank == 0 and self.local_rank == 0 else self.train_loader
 
             data_time_m = AverageMeter()
             data_time = time.time()
@@ -297,7 +302,7 @@ class SimVP_Experiment():
 
                 self.scheduler.step()
 
-                if self._rank == 0 and self.args.pbar:
+                if self.rank == 0 and self.local_rank == 0 and self.args.pbar:
                     log_buffer = 'train loss: {:.4f}'.format(loss_item)
                     log_buffer += ' | data time: {:.4f}'.format(data_time_m.avg)
                     train_pbar.set_description(log_buffer)
@@ -319,23 +324,24 @@ class SimVP_Experiment():
                     rmes_m.update(calc_rmse(val_pred_y.cpu().numpy(), val_batch_y.cpu().numpy()))
                     psnrs_m.update(calc_psnr(val_pred_y.cpu().numpy(), val_batch_y.cpu().numpy()))
 
-                if self._rank == 0 and val_losses_m.avg < best_loss:
+                if self.rank == 0 and val_losses_m.avg < best_loss:
                     best_loss = val_losses_m.avg
 
                     print(f'Lowest loss found... Saving best model to {self.model_path}')
                     torch.save(self.model.state_dict(), str(self.model_path))
+                    dist.barrier()
 
             if self._use_gpu and self.args.empty_cache:
                 torch.cuda.empty_cache()
 
-            if self._rank == 0:
+            if self.rank == 0:
                 lr = np.mean(np.array([group['lr'] for group in self.optimizer.param_groups]))
                 print('Epoch: {0}/{1}, Steps: {2} | Lr: {3:.7f} | Train Loss: {4:.7f} | Vali Loss: {5:.7f}'.format(
                     epoch + 1, self._max_epochs, len(self.train_loader), lr, losses_m.avg, val_losses_m.avg))
                 print(
                     f"val ssim: {ssims_m.avg}, mse: {mses_m.avg}, mae: {maes_m.avg}, rmse: {rmes_m.avg}, psnr: {psnrs_m.avg}\n")
 
-        if self._rank == 0:
+        if self.rank == 0 and self.local_rank == 0:
             elapsed_time = time.time() - start_time
             print(f'Training time: {format_seconds(elapsed_time)}')
 
@@ -387,7 +393,7 @@ class SimVP_Experiment():
                 'psnr': psnrs_m.avg
             }
 
-        if self._rank == 0:
+        if self.rank == 0:
             print(f"ssim: {ssims_m.avg}, mse: {mses_m.avg}, mae: {maes_m.avg}, rmse: {rmes_m.avg}, psnr: {psnrs_m.avg}")
             if save_files:
                 self.save_results(results, save_dir)

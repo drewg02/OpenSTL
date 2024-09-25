@@ -36,12 +36,16 @@ class SimulationExperiment(BaseExperiment):
 
     def _acquire_device(self):
         """Setup devices"""
+        if self.args.device is not None:
+            print_log(f'Use device: {self.args.device}')
+            return torch.device(self.args.device)
+
         self._use_gpu = self.args.use_gpu and torch.cuda.is_available()
 
         if self.args.dist and not self._use_gpu:
             assert False, "Distributed training requires GPUs"
 
-        if self._use_gpu:
+        if self._use_gpu and torch.cuda.is_available():
             device = f'cuda:{self.args.local_rank if self.args.dist else 0}'
             if self.args.dist:
                 torch.cuda.set_device(self.args.local_rank)
