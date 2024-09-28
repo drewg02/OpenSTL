@@ -39,7 +39,7 @@ class SimVP_Experiment():
         self.device = self.args.device
         self.rank = 0
         self.world_size = 1
-        self.local_rank = int(os.environ['LOCAL_RANK'])
+        self.local_rank = int(os.environ.get('LOCAL_RANK', 0))
 
         self.path = os.path.join(self.args.res_dir, self.args.ex_dir)
         if self.rank == 0 and self.local_rank == 0:
@@ -51,16 +51,18 @@ class SimVP_Experiment():
         self._preparation(dataloaders)
 
     def __del__(self):
-        try:
-            dist.destroy_process_group()
-        except Exception as e:
-            print(f"Failed to destroy process group: {e}")
+        if self._dist:
+            try:
+                dist.destroy_process_group()
+            except Exception as e:
+                print(f"Failed to destroy process group: {e}")
 
     def _acquire_device(self):
         """Setup devices"""
         if self.args.device is not None:
             print(f'Use device: {self.args.device}')
-            return torch.device(self.args.device)
+            self.device = torch.device(self.args.device)
+            return
 
         self._use_gpu = self.args.use_gpu and torch.cuda.is_available()
 
@@ -78,10 +80,9 @@ class SimVP_Experiment():
             device = 'cpu'
             print('No GPU available, defaulting to CPU' if self.args.use_gpu else 'Use CPU')
 
-        return torch.device(device)
+        self.device = torch.device(device)
 
     def _preparation(self, dataloaders=None):
-        print(self.args.use_gpu)
         if self.args.launcher != 'none' or self.args.dist:
             self._dist = True
 
@@ -254,8 +255,12 @@ class SimVP_Experiment():
         info = self.model.__repr__()
         flops = FlopCountAnalysis(self.model, input_dummy)
         flops = flop_count_table(flops)
-        fps = measure_throughput(self.model, input_dummy)
-        fps = 'Throughputs of {}: {:.3f}\n'.format('SimVP', fps)
+        # Throughput requires CUDA
+        if self.args.fps and torch.cuda.is_available():
+            fps = measure_throughput(self.model, input_dummy)
+            fps = 'Throughputs of {}: {:.3f}\n'.format('SimVP', fps)
+        else:
+            fps = ''
         print('Model info:\n' + info + '\n' + flops + '\n' + fps + dash_line)
 
     def train(self):
@@ -298,7 +303,8 @@ class SimVP_Experiment():
                 loss.backward()
                 self.optimizer.step()
 
-                torch.cuda.synchronize()
+                if self._use_gpu:
+                    torch.cuda.synchronize()
 
                 self.scheduler.step()
 
@@ -329,7 +335,8 @@ class SimVP_Experiment():
 
                     print(f'Lowest loss found... Saving best model to {self.model_path}')
                     torch.save(self.model.state_dict(), str(self.model_path))
-                    dist.barrier()
+                    if self._dist:
+                        dist.barrier()
 
             if self._use_gpu and self.args.empty_cache:
                 torch.cuda.empty_cache()

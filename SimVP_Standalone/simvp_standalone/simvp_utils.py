@@ -25,7 +25,7 @@ def create_parser():
     parser = argparse.ArgumentParser(
         description='OpenSTL train/test a model')
     # Set-up parameters
-    parser.add_argument('--device', default='cuda', type=str,
+    parser.add_argument('--device', default=None, type=str,
                         help='Name of device to use for tensor computations (cuda/cpu)')
     parser.add_argument('--dist', action='store_true', default=False,
                         help='Whether to use distributed training (DDP)')
@@ -153,8 +153,6 @@ def create_parser():
 
 
 seconds_format_dict = {
-    'years': 31536000,
-    'months': 2592000,
     'weeks': 604800,
     'days': 86400,
     'hours': 3600,
