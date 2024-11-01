@@ -426,7 +426,7 @@ class SimVP_Experiment():
             for i in range(len(data)):
                 line = data[i]
 
-                unique_id = self.original_test_loader.dataset.data['samples'][i][0].split('/')[-2]
+                unique_id = os.path.split(self.original_test_loader.dataset.data['samples'][i][0])[0].split(os.path.sep)[-1]
 
                 save_path = osp.join(folder_path, result_data, unique_id)
                 if not osp.exists(save_path):

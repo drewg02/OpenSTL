@@ -72,18 +72,19 @@ class Config:
 
         with tempfile.TemporaryDirectory() as temp_config_dir:
             temp_config_file = tempfile.NamedTemporaryFile(
-                dir=temp_config_dir, suffix=fileExtname)
-            temp_config_name = osp.basename(temp_config_file.name)
+                dir=temp_config_dir, suffix=fileExtname, delete=False)
+            temp_config_name = temp_config_file.name
+            temp_config_file.close()
 
             # Substitute predefined variables
             if use_predefined_variables:
                 Config._substitute_predefined_vars(filename,
-                                                   temp_config_file.name)
+                                                   temp_config_name)
             else:
-                shutil.copyfile(filename, temp_config_file.name)
+                shutil.copyfile(filename, temp_config_name)
 
             if filename.endswith('.py'):
-                temp_module_name = osp.splitext(temp_config_name)[0]
+                temp_module_name = osp.splitext(osp.basename(temp_config_name))[0]
                 sys.path.insert(0, temp_config_dir)
                 Config._validate_py_syntax(filename)
                 mod = import_module(temp_module_name)
@@ -96,7 +97,8 @@ class Config:
                 # delete imported module
                 del sys.modules[temp_module_name]
             # close temp file
-            temp_config_file.close()
+            import os
+            os.unlink(temp_config_name)
         return cfg_dict
 
     @staticmethod
