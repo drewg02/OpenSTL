@@ -62,7 +62,7 @@ class SimVP_Experiment():
         if self.args.device is not None:
             print(f'Use device: {self.args.device}')
             self.device = torch.device(self.args.device)
-            self._use_gpu = 'cuda' in self.args.device  # Set based on device type
+            self._use_gpu = 'cuda' in self.args.device
             return
 
         self._use_gpu = self.args.use_gpu and torch.cuda.is_available()
