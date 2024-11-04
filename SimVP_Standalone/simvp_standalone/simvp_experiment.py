@@ -336,7 +336,7 @@ class SimVP_Experiment():
 
                     print(f'Lowest loss found... Saving best model to {self.model_path}')
                     torch.save(self.model.state_dict(), str(self.model_path))
-                    if self._dist:
+                    if self._dist and self.world_size > 1:
                         dist.barrier()
 
             if self._use_gpu and self.args.empty_cache:
