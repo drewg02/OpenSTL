@@ -62,6 +62,7 @@ class SimVP_Experiment():
         if self.args.device is not None:
             print(f'Use device: {self.args.device}')
             self.device = torch.device(self.args.device)
+            self._use_gpu = 'cuda' in self.args.device
             return
 
         self._use_gpu = self.args.use_gpu and torch.cuda.is_available()
@@ -426,7 +427,7 @@ class SimVP_Experiment():
             for i in range(len(data)):
                 line = data[i]
 
-                unique_id = self.original_test_loader.dataset.data['samples'][i][0].split('/')[-2]
+                unique_id = os.path.split(self.original_test_loader.dataset.data['samples'][i][0])[0].split(os.path.sep)[-1]
 
                 save_path = osp.join(folder_path, result_data, unique_id)
                 if not osp.exists(save_path):
